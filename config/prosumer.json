@@ -1,0 +1,34 @@
+{
+  "profile": "prosumer",
+  "tier1": {
+    "model": "qwen2.5:3b",
+    "maxCores": 8,
+    "quantization": "q4_k_m"
+  },
+  "tier2": {
+    "model": "gemma2:27b",
+    "maxCores": 12,
+    "quantization": "q4_k_m",
+    "apiFallback": true
+  },
+  "tier3": {
+    "model": "claude-sonnet-4-6",
+    "apiOnly": true
+  },
+  "buffer": {
+    "size": 6
+  },
+  "escalation": {
+    "tokenProbabilitySpreadWeight": 0.30,
+    "semanticVelocityWeight": 0.25,
+    "surpriseScoreWeight": 0.30,
+    "attentionAnomalyWeight": 0.15,
+    "escalationThreshold": 0.70,
+    "deescalationThreshold": 0.40,
+    "deescalationTokenWindow": 10
+  },
+  "sleep": {
+    "idleThresholdMinutes": 5,
+    "apiModel": "claude-sonnet-4-6"
+  }
+}

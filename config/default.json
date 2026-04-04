@@ -1,0 +1,34 @@
+{
+  "profile": "default",
+  "tier1": {
+    "model": "qwen2.5:1.5b",
+    "maxCores": 6,
+    "quantization": "q4_0"
+  },
+  "tier2": {
+    "model": "gemma2:27b",
+    "maxCores": 8,
+    "quantization": "q4_0",
+    "apiFallback": true
+  },
+  "tier3": {
+    "model": "claude-sonnet-4-6",
+    "apiOnly": true
+  },
+  "buffer": {
+    "size": 4
+  },
+  "escalation": {
+    "tokenProbabilitySpreadWeight": 0.35,
+    "semanticVelocityWeight": 0.25,
+    "surpriseScoreWeight": 0.25,
+    "attentionAnomalyWeight": 0.15,
+    "escalationThreshold": 0.65,
+    "deescalationThreshold": 0.35,
+    "deescalationTokenWindow": 8
+  },
+  "sleep": {
+    "idleThresholdMinutes": 5,
+    "apiModel": "claude-sonnet-4-6"
+  }
+}

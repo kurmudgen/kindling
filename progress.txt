@@ -1,0 +1,35 @@
+KINDLING BUILD — Phase 1
+Last updated: 2026-04-04T15:30:00Z
+Last commit: initial build — all Phase 1 components
+
+COMPLETED:
+- [x] Project init, tsconfig, package.json, folder structure
+- [x] tier-interface.ts — shared interface for all tiers
+- [x] config.ts + config JSON files (default, ddr4-budget, prosumer)
+- [x] tier1.ts — Ollama local (Shallow)
+- [x] valence.ts — query valence scoring
+- [x] confidence.ts — confidence signal aggregation + routing decisions
+- [x] speculative.ts + vitest unit tests (12 tests passing)
+- [x] tier2.ts — Ollama + API fallback (Medium)
+- [x] tier3.ts — API stand-in (Deep) with cost tracking
+- [x] router.ts — main query orchestration
+- [x] logger.ts — escalation event logger (privacy-safe, hash-only)
+- [x] analyst.ts — sleep stage API analysis with learned.json persistence
+- [x] bench.ts — benchmark runner (55 queries across 4 categories)
+- [x] index.ts — entry point with REPL
+- [x] README.md
+- [x] .env.example, .gitignore
+
+IN PROGRESS:
+- (none)
+
+REMAINING:
+- [ ] Phase 2: Local streaming for Tier 3
+- [ ] Phase 3: Learned valence classifier (replace rule-based)
+- [ ] Phase 3: Full speculative parallel execution in router
+
+STOP POINT NOTES:
+Phase 1 complete. All source files compile cleanly (tsc --noEmit passes).
+12 unit tests pass for speculative buffer.
+To test end-to-end: ensure Ollama is running with qwen2.5:1.5b pulled, set ANTHROPIC_API_KEY in .env.
+npm run start for interactive REPL, npm run bench for benchmarks.

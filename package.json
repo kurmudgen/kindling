@@ -1,0 +1,29 @@
+{
+  "name": "kindling",
+  "version": "1.0.0",
+  "description": "Adaptive tiered inference runtime for LLMs — CPU-primary, no hard VRAM dependency",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node --loader ts-node/esm src/index.ts",
+    "bench": "node --loader ts-node/esm src/benchmark/bench.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": ["llm", "inference", "tiered", "adaptive", "ollama"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
+    "dotenv": "^17.4.0",
+    "ollama": "^0.6.3",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2"
+  }
+}
