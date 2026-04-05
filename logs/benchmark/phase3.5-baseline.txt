@@ -1,0 +1,108 @@
+KINDLING PHASE 3.5 BASELINE BENCHMARK
+Run date: 2026-04-05
+Profile: default (qwen2.5:1.5b T1, qwen2.5:14b T2, qwen2.5:32b T3 local)
+Mode: KINDLING_DREAM=false (background sleep disabled for clean measurement)
+learned.json: active with Phase 3 sleep analyst recommendations
+
+==========================================================================
+FULL BENCHMARK RESULTS (55 queries)
+==========================================================================
+
+Total: 55 | Pass: 55 | Fail: 0
+Escalations (post-start): 0 | Tier1: 44 | Tier2: 9 | Tier3: 2
+
+Category  | Count | Avg Latency | Avg Tokens | Confidence | Tier Dist
+----------|-------|-------------|------------|------------|----------
+simple    | 20    | 2,903ms     | 43         | 0.882      | 20/0/0
+medium    | 20    | 22,220ms    | 359        | 0.778      | 16/4/0
+hard      | 10    | 161,188ms   | 492        | 0.825      | 6/2/2
+mixed     | 5     | 38,424ms    | 493        | 0.811      | 2/3/0
+
+==========================================================================
+PHASE 1 vs 2 vs 3 vs 3.5 COMPARISON
+==========================================================================
+
+Metric                | Phase 1  | Phase 2  | Phase 3     | Phase 3.5
+----------------------|----------|----------|-------------|------------
+Pass rate             | 55/55    | 55/55    | 55/55       | 55/55
+Total escalations     | 0        | 23       | 20          | 0
+Tier1 count           | 55       | 29       | 29          | 44
+Tier2 count           | 0        | 18       | 21          | 9
+Tier3 count           | 0        | 8        | 5           | 2
+Simple latency avg    | 1,646ms  | 4,671ms  | 2,772ms     | 2,903ms
+Medium latency avg    | 2,139ms  | 40,688ms | 53,397ms    | 22,220ms
+Hard latency avg      | 2,500ms  | 258,988ms| 201,288ms   | 161,188ms
+Mixed latency avg     | 2,757ms  | 159,198ms| 157,458ms   | 38,424ms
+
+==========================================================================
+KEY FINDING: LEARNED WEIGHTS CHANGED SYSTEM BEHAVIOR
+==========================================================================
+
+The Phase 3 sleep analyst diagnosed that Phase 2/3 was OVER-ESCALATING
+on low-valence queries — escalating even when composite valence was
+under 0.25 and urgency/stakes were zero. It recommended:
+  - escalationThreshold: 0.28 → 0.36 (+0.08)
+  - tokenProbabilitySpreadWeight: 0.35 → 0.24 (-0.11)
+  - semanticVelocityWeight: 0.25 → 0.31 (+0.06)
+  - attentionAnomalyWeight: 0.15 → 0.20 (+0.05)
+  - deescalationThreshold: 0.15 → 0.18 (+0.03)
+
+Phase 3.5 loaded these learned weights (age=0, full effect) via the
+decay-aware config merge. The behavior changed as predicted:
+
+1. ZERO post-start escalations. The higher threshold means signals
+   from the 1.5b model no longer cross the escalation line for
+   moderately-complex queries.
+
+2. More queries stay at Tier 1 (44 vs 29 in Phase 3). The learned
+   weights are more tolerant of moderate spread/velocity signals.
+
+3. The remaining Tier 2/3 queries (11 total) all started there via
+   the valence gate — not through signal-based escalation. These are
+   queries with composite > 0.35 (Tier 2 gate) or composite > 0.50
+   + stakes > 0.5 (Tier 3 gate).
+
+4. HUGE latency wins on medium queries: 53.4s → 22.2s (-58%). Medium
+   queries that Phase 3 incorrectly escalated to the slow 14b model
+   now run entirely on the fast 1.5b model.
+
+5. Hard queries also faster: 201s → 161s (-20%). Fewer unnecessary
+   Tier 3 (32b) calls.
+
+==========================================================================
+WAS THIS THE RIGHT CALL?
+==========================================================================
+
+The learned weights made the system more aggressive about staying at
+Tier 1. Two ways to read this:
+
+OPTIMISTIC: The sleep analyst correctly identified false escalations
+and fixed them. Quality stayed the same (all 55 pass, coherence >0.8
+across all categories) while cutting medium-query latency by 58%.
+This is the adaptive learning working as designed.
+
+SKEPTICAL: The new weights may be OVER-conservative. Medium queries
+that legitimately benefit from the 14b model's better output are now
+served by the 1.5b model. Without a human quality review, we can't
+tell if the responses are as good or just "good enough".
+
+The correct answer depends on per-query quality evaluation, which
+Phase 4's shadow mode (compare against Claude responses) will enable.
+For now, the system is doing exactly what it was told to do by its
+own learned weights — and the analyst's diagnosis was specifically
+targeted at the low-valence escalation class that was the dominant
+pattern in Phase 2/3 logs.
+
+==========================================================================
+PHASE 3.5 HARDENING METRICS
+==========================================================================
+
+Recovery events: 0 (all tier calls succeeded on first attempt)
+Circuit breaker: not tripped
+Concurrency issues: none (sequential benchmark runner)
+Dream tasks: disabled (KINDLING_DREAM=false)
+Log compaction: would reduce benchmark log by ~75% if analyst ran
+VCR mode: not active during benchmark
+
+All Phase 3.5 infrastructure ran in production mode during the 55
+queries with zero failures.

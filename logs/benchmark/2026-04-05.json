@@ -1,69 +1,69 @@
 {
-  "timestamp": "2026-04-05T07:57:56.274Z",
+  "timestamp": "2026-04-05T09:08:16.139Z",
   "totalQueries": 55,
   "successful": 55,
   "failed": 0,
-  "escalations": 20,
+  "escalations": 0,
   "tierDistribution": {
-    "tier1": 29,
-    "tier2": 21,
-    "tier3": 5
+    "tier1": 44,
+    "tier2": 9,
+    "tier3": 2
   },
   "byCategory": {
     "simple": {
       "count": 20,
-      "avgLatencyMs": 2772,
-      "avgTokens": 29,
-      "avgCoherence": 0.822,
-      "avgConfidence": 0.854,
+      "avgLatencyMs": 2903,
+      "avgTokens": 43,
+      "avgCoherence": 0.816,
+      "avgConfidence": 0.882,
       "successRate": 1,
-      "escalationRate": 0.05,
+      "escalationRate": 0,
       "tierBreakdown": {
-        "tier1": 19,
-        "tier2": 1,
+        "tier1": 20,
+        "tier2": 0,
         "tier3": 0
       }
     },
     "medium": {
       "count": 20,
-      "avgLatencyMs": 53397,
-      "avgTokens": 435,
-      "avgCoherence": 0.887,
-      "avgConfidence": 0.78,
+      "avgLatencyMs": 22220,
+      "avgTokens": 359,
+      "avgCoherence": 0.9,
+      "avgConfidence": 0.778,
       "successRate": 1,
-      "escalationRate": 0.55,
+      "escalationRate": 0,
       "tierBreakdown": {
-        "tier1": 9,
-        "tier2": 11,
+        "tier1": 20,
+        "tier2": 0,
         "tier3": 0
       }
     },
     "hard": {
       "count": 10,
-      "avgLatencyMs": 201288,
-      "avgTokens": 546,
-      "avgCoherence": 0.897,
-      "avgConfidence": 0.806,
+      "avgLatencyMs": 161188,
+      "avgTokens": 492,
+      "avgCoherence": 0.887,
+      "avgConfidence": 0.825,
       "successRate": 1,
-      "escalationRate": 0.5,
+      "escalationRate": 0,
       "tierBreakdown": {
-        "tier1": 0,
-        "tier2": 7,
-        "tier3": 3
+        "tier1": 2,
+        "tier2": 6,
+        "tier3": 2
       }
     },
     "mixed": {
       "count": 5,
-      "avgLatencyMs": 157458,
-      "avgTokens": 511,
-      "avgCoherence": 0.888,
-      "avgConfidence": 0.82,
+      "avgLatencyMs": 38424,
+      "avgTokens": 493,
+      "avgCoherence": 0.882,
+      "avgConfidence": 0.811,
       "successRate": 1,
-      "escalationRate": 0.6,
+      "escalationRate": 0,
       "tierBreakdown": {
-        "tier1": 1,
-        "tier2": 2,
-        "tier3": 2
+        "tier1": 2,
+        "tier2": 3,
+        "tier3": 0
       }
     }
   },
@@ -76,8 +76,8 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.966,
-      "latencyMs": 5129,
+      "confidence": 0.973,
+      "latencyMs": 4590,
       "responseLength": 5,
       "coherenceScore": 0.75,
       "success": true
@@ -90,10 +90,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.758,
-      "latencyMs": 528,
-      "responseLength": 4,
-      "coherenceScore": 0.74,
+      "confidence": 0.883,
+      "latencyMs": 748,
+      "responseLength": 5,
+      "coherenceScore": 0.75,
       "success": true
     },
     {
@@ -104,8 +104,8 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.869,
-      "latencyMs": 582,
+      "confidence": 0.874,
+      "latencyMs": 578,
       "responseLength": 7,
       "coherenceScore": 0.77,
       "success": true
@@ -118,10 +118,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.918,
-      "latencyMs": 984,
-      "responseLength": 13,
-      "coherenceScore": 0.83,
+      "confidence": 0.966,
+      "latencyMs": 630,
+      "responseLength": 7,
+      "coherenceScore": 0.77,
       "success": true
     },
     {
@@ -132,8 +132,8 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.991,
-      "latencyMs": 534,
+      "confidence": 0.994,
+      "latencyMs": 564,
       "responseLength": 6,
       "coherenceScore": 0.76,
       "success": true
@@ -146,9 +146,9 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.738,
-      "latencyMs": 2829,
-      "responseLength": 50,
+      "confidence": 0.737,
+      "latencyMs": 6267,
+      "responseLength": 114,
       "coherenceScore": 1,
       "success": true
     },
@@ -160,10 +160,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.819,
-      "latencyMs": 552,
-      "responseLength": 6,
-      "coherenceScore": 0.76,
+      "confidence": 0.875,
+      "latencyMs": 844,
+      "responseLength": 12,
+      "coherenceScore": 0.82,
       "success": true
     },
     {
@@ -174,8 +174,8 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.983,
-      "latencyMs": 685,
+      "confidence": 0.988,
+      "latencyMs": 679,
       "responseLength": 5,
       "coherenceScore": 0.75,
       "success": true
@@ -188,25 +188,24 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.87,
-      "latencyMs": 679,
-      "responseLength": 8,
-      "coherenceScore": 0.7799999999999999,
+      "confidence": 0.905,
+      "latencyMs": 532,
+      "responseLength": 4,
+      "coherenceScore": 0.74,
       "success": true
     },
     {
       "query": "What color is the sky?",
       "category": "simple",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.893,
-      "latencyMs": 18570,
-      "responseLength": 97,
-      "coherenceScore": 0.9505154639175257,
+      "confidence": 0.78,
+      "latencyMs": 16720,
+      "responseLength": 284,
+      "coherenceScore": 0.9116197183098591,
       "success": true
     },
     {
@@ -217,10 +216,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.842,
-      "latencyMs": 365,
-      "responseLength": 1,
-      "coherenceScore": 0.71,
+      "confidence": 0.831,
+      "latencyMs": 1810,
+      "responseLength": 29,
+      "coherenceScore": 0.99,
       "success": true
     },
     {
@@ -231,10 +230,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.726,
-      "latencyMs": 6294,
-      "responseLength": 110,
-      "coherenceScore": 0.9272727272727272,
+      "confidence": 0.961,
+      "latencyMs": 681,
+      "responseLength": 6,
+      "coherenceScore": 0.76,
       "success": true
     },
     {
@@ -245,10 +244,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.861,
-      "latencyMs": 997,
-      "responseLength": 11,
-      "coherenceScore": 0.8099999999999999,
+      "confidence": 0.92,
+      "latencyMs": 631,
+      "responseLength": 5,
+      "coherenceScore": 0.45,
       "success": true
     },
     {
@@ -259,9 +258,9 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.761,
-      "latencyMs": 5199,
-      "responseLength": 79,
+      "confidence": 0.815,
+      "latencyMs": 5505,
+      "responseLength": 90,
       "coherenceScore": 1,
       "success": true
     },
@@ -273,10 +272,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.794,
-      "latencyMs": 321,
-      "responseLength": 1,
-      "coherenceScore": 0.71,
+      "confidence": 0.828,
+      "latencyMs": 594,
+      "responseLength": 7,
+      "coherenceScore": 0.77,
       "success": true
     },
     {
@@ -287,10 +286,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.839,
-      "latencyMs": 7000,
-      "responseLength": 115,
-      "coherenceScore": 0.9086956521739131,
+      "confidence": 0.892,
+      "latencyMs": 9189,
+      "responseLength": 142,
+      "coherenceScore": 0.8957746478873239,
       "success": true
     },
     {
@@ -302,9 +301,9 @@
         1
       ],
       "confidence": 0.777,
-      "latencyMs": 2406,
-      "responseLength": 40,
-      "coherenceScore": 1,
+      "latencyMs": 1313,
+      "responseLength": 22,
+      "coherenceScore": 0.9199999999999999,
       "success": true
     },
     {
@@ -315,10 +314,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.758,
-      "latencyMs": 370,
-      "responseLength": 1,
-      "coherenceScore": 0.71,
+      "confidence": 0.827,
+      "latencyMs": 4896,
+      "responseLength": 90,
+      "coherenceScore": 0.9888888888888889,
       "success": true
     },
     {
@@ -329,10 +328,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.942,
-      "latencyMs": 773,
-      "responseLength": 9,
-      "coherenceScore": 0.7899999999999999,
+      "confidence": 0.919,
+      "latencyMs": 561,
+      "responseLength": 4,
+      "coherenceScore": 0.74,
       "success": true
     },
     {
@@ -343,10 +342,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.966,
-      "latencyMs": 639,
-      "responseLength": 8,
-      "coherenceScore": 0.7799999999999999,
+      "confidence": 0.895,
+      "latencyMs": 724,
+      "responseLength": 9,
+      "coherenceScore": 0.7899999999999999,
       "success": true
     },
     {
@@ -357,10 +356,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.755,
-      "latencyMs": 24149,
-      "responseLength": 409,
-      "coherenceScore": 0.8750611246943765,
+      "confidence": 0.814,
+      "latencyMs": 13980,
+      "responseLength": 226,
+      "coherenceScore": 0.929646017699115,
       "success": true
     },
     {
@@ -371,40 +370,38 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.749,
-      "latencyMs": 12173,
-      "responseLength": 223,
-      "coherenceScore": 0.9340807174887893,
+      "confidence": 0.757,
+      "latencyMs": 14564,
+      "responseLength": 264,
+      "coherenceScore": 0.9257575757575758,
       "success": true
     },
     {
       "query": "Analyze the pros and cons of microservices architecture.",
       "category": "medium",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.809,
-      "latencyMs": 43381,
-      "responseLength": 368,
-      "coherenceScore": 0.927445652173913,
+      "confidence": 0.824,
+      "latencyMs": 17437,
+      "responseLength": 289,
+      "coherenceScore": 0.9217993079584774,
       "success": true
     },
     {
       "query": "Design a simple caching strategy for a REST API.",
       "category": "medium",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.791,
-      "latencyMs": 75244,
-      "responseLength": 534,
-      "coherenceScore": 0.8855805243445694,
+      "confidence": 0.782,
+      "latencyMs": 23996,
+      "responseLength": 325,
+      "coherenceScore": 0.9292307692307693,
       "success": true
     },
     {
@@ -415,10 +412,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.755,
-      "latencyMs": 23877,
-      "responseLength": 250,
-      "coherenceScore": 0.9079999999999999,
+      "confidence": 0.742,
+      "latencyMs": 24662,
+      "responseLength": 419,
+      "coherenceScore": 0.9186157517899762,
       "success": true
     },
     {
@@ -429,10 +426,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.748,
-      "latencyMs": 63207,
-      "responseLength": 738,
-      "coherenceScore": 0.8384823848238483,
+      "confidence": 0.765,
+      "latencyMs": 22917,
+      "responseLength": 383,
+      "coherenceScore": 0.8885117493472585,
       "success": true
     },
     {
@@ -443,25 +440,24 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.759,
-      "latencyMs": 24546,
-      "responseLength": 390,
-      "coherenceScore": 0.8653846153846154,
+      "confidence": 0.76,
+      "latencyMs": 21159,
+      "responseLength": 368,
+      "coherenceScore": 0.8785326086956522,
       "success": true
     },
     {
       "query": "Analyze the tradeoffs between REST and GraphQL.",
       "category": "medium",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.778,
-      "latencyMs": 127771,
-      "responseLength": 567,
-      "coherenceScore": 0.8839506172839506,
+      "confidence": 0.738,
+      "latencyMs": 16611,
+      "responseLength": 310,
+      "coherenceScore": 0.9209677419354838,
       "success": true
     },
     {
@@ -472,70 +468,66 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.763,
-      "latencyMs": 30629,
-      "responseLength": 437,
-      "coherenceScore": 0.8917620137299771,
+      "confidence": 0.775,
+      "latencyMs": 34960,
+      "responseLength": 511,
+      "coherenceScore": 0.8964774951076322,
       "success": true
     },
     {
       "query": "Explain how TLS handshake works step by step.",
       "category": "medium",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.8,
-      "latencyMs": 75667,
-      "responseLength": 547,
-      "coherenceScore": 0.8477148080438757,
+      "confidence": 0.757,
+      "latencyMs": 22922,
+      "responseLength": 398,
+      "coherenceScore": 0.8851758793969848,
       "success": true
     },
     {
       "query": "Compare container orchestration approaches: Kubernetes vs Nomad.",
       "category": "medium",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.802,
-      "latencyMs": 80187,
-      "responseLength": 528,
-      "coherenceScore": 0.8897727272727274,
+      "confidence": 0.787,
+      "latencyMs": 30931,
+      "responseLength": 473,
+      "coherenceScore": 0.8727272727272728,
       "success": true
     },
     {
       "query": "Analyze the benefits and risks of event-driven architecture.",
       "category": "medium",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.791,
-      "latencyMs": 73586,
-      "responseLength": 477,
-      "coherenceScore": 0.9144654088050315,
+      "confidence": 0.773,
+      "latencyMs": 17445,
+      "responseLength": 296,
+      "coherenceScore": 0.9378378378378378,
       "success": true
     },
     {
       "query": "Explain the difference between authentication and authorization.",
       "category": "medium",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.834,
-      "latencyMs": 58164,
-      "responseLength": 183,
-      "coherenceScore": 0.9415300546448087,
+      "confidence": 0.816,
+      "latencyMs": 7410,
+      "responseLength": 136,
+      "coherenceScore": 0.9455882352941176,
       "success": true
     },
     {
@@ -546,10 +538,10 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.822,
-      "latencyMs": 31219,
-      "responseLength": 371,
-      "coherenceScore": 0.8735849056603773,
+      "confidence": 0.817,
+      "latencyMs": 39244,
+      "responseLength": 458,
+      "coherenceScore": 0.8772925764192139,
       "success": true
     },
     {
@@ -560,55 +552,52 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.747,
-      "latencyMs": 11832,
-      "responseLength": 217,
-      "coherenceScore": 0.8949308755760368,
+      "confidence": 0.764,
+      "latencyMs": 17908,
+      "responseLength": 312,
+      "coherenceScore": 0.8996794871794871,
       "success": true
     },
     {
       "query": "Explain how DNS resolution works from browser to server.",
       "category": "medium",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.783,
-      "latencyMs": 50097,
-      "responseLength": 515,
-      "coherenceScore": 0.8728155339805825,
+      "confidence": 0.8,
+      "latencyMs": 13720,
+      "responseLength": 248,
+      "coherenceScore": 0.8862903225806451,
       "success": true
     },
     {
       "query": "Analyze the tradeoffs of eventual consistency.",
       "category": "medium",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.789,
-      "latencyMs": 54600,
-      "responseLength": 425,
-      "coherenceScore": 0.891764705882353,
+      "confidence": 0.788,
+      "latencyMs": 35795,
+      "responseLength": 607,
+      "coherenceScore": 0.8578253706754531,
       "success": true
     },
     {
       "query": "Design an API versioning strategy.",
       "category": "medium",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.763,
-      "latencyMs": 106547,
-      "responseLength": 474,
-      "coherenceScore": 0.8995780590717299,
+      "confidence": 0.785,
+      "latencyMs": 26715,
+      "responseLength": 384,
+      "coherenceScore": 0.8929687500000001,
       "success": true
     },
     {
@@ -619,25 +608,24 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.754,
-      "latencyMs": 38985,
-      "responseLength": 462,
-      "coherenceScore": 0.8608225108225109,
+      "confidence": 0.764,
+      "latencyMs": 17120,
+      "responseLength": 303,
+      "coherenceScore": 0.8805280528052806,
       "success": true
     },
     {
       "query": "Compare load balancing algorithms for web servers.",
       "category": "medium",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.801,
-      "latencyMs": 62080,
-      "responseLength": 580,
-      "coherenceScore": 0.835344827586207,
+      "confidence": 0.76,
+      "latencyMs": 24899,
+      "responseLength": 464,
+      "coherenceScore": 0.8586206896551725,
       "success": true
     },
     {
@@ -648,10 +636,10 @@
       "escalationPath": [
         2
       ],
-      "confidence": 0.807,
-      "latencyMs": 81040,
-      "responseLength": 572,
-      "coherenceScore": 0.9164335664335665,
+      "confidence": 0.813,
+      "latencyMs": 50731,
+      "responseLength": 609,
+      "coherenceScore": 0.8750410509031199,
       "success": true
     },
     {
@@ -662,41 +650,38 @@
       "escalationPath": [
         3
       ],
-      "confidence": 0.85,
-      "latencyMs": 306782,
-      "responseLength": 560,
-      "coherenceScore": 0.8919642857142858,
+      "confidence": 0.95,
+      "latencyMs": 377131,
+      "responseLength": 296,
+      "coherenceScore": 0.9209459459459459,
       "success": true
     },
     {
       "query": "Analyze and compare the theoretical foundations of transformer attention mechani",
       "category": "hard",
       "tier": 2,
-      "escalated": true,
+      "escalated": false,
       "escalationPath": [
-        2,
-        3,
         2
       ],
-      "confidence": 0.768,
-      "latencyMs": 376248,
-      "responseLength": 651,
-      "coherenceScore": 0.8933947772657451,
+      "confidence": 0.816,
+      "latencyMs": 313898,
+      "responseLength": 570,
+      "coherenceScore": 0.8622807017543859,
       "success": true
     },
     {
       "query": "Design a distributed consensus protocol for a multi-region database that maintai",
       "category": "hard",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.768,
-      "latencyMs": 83009,
-      "responseLength": 630,
-      "coherenceScore": 0.8690476190476191,
+      "confidence": 0.74,
+      "latencyMs": 32420,
+      "responseLength": 490,
+      "coherenceScore": 0.8673469387755102,
       "success": true
     },
     {
@@ -707,10 +692,10 @@
       "escalationPath": [
         2
       ],
-      "confidence": 0.827,
-      "latencyMs": 88200,
-      "responseLength": 525,
-      "coherenceScore": 0.8961904761904762,
+      "confidence": 0.817,
+      "latencyMs": 45274,
+      "responseLength": 597,
+      "coherenceScore": 0.9006700167504187,
       "success": true
     },
     {
@@ -721,40 +706,38 @@
       "escalationPath": [
         2
       ],
-      "confidence": 0.808,
-      "latencyMs": 38995,
-      "responseLength": 517,
-      "coherenceScore": 0.909477756286267,
+      "confidence": 0.815,
+      "latencyMs": 37097,
+      "responseLength": 512,
+      "coherenceScore": 0.9037109375000001,
       "success": true
     },
     {
       "query": "Analyze the security implications of implementing a zero-trust architecture in a",
       "category": "hard",
-      "tier": 3,
-      "escalated": true,
+      "tier": 2,
+      "escalated": false,
       "escalationPath": [
-        2,
-        3
+        2
       ],
-      "confidence": 0.85,
-      "latencyMs": 302234,
-      "responseLength": 295,
-      "coherenceScore": 0.9305084745762713,
+      "confidence": 0.815,
+      "latencyMs": 39616,
+      "responseLength": 515,
+      "coherenceScore": 0.9019417475728155,
       "success": true
     },
     {
       "query": "Design a real-time stream processing system that handles backpressure, exactly-o",
       "category": "hard",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.77,
-      "latencyMs": 111148,
-      "responseLength": 551,
-      "coherenceScore": 0.8940108892921961,
+      "confidence": 0.715,
+      "latencyMs": 27077,
+      "responseLength": 428,
+      "coherenceScore": 0.9165887850467289,
       "success": true
     },
     {
@@ -765,41 +748,38 @@
       "escalationPath": [
         3
       ],
-      "confidence": 0.85,
-      "latencyMs": 267764,
-      "responseLength": 569,
-      "coherenceScore": 0.8829525483304042,
+      "confidence": 0.95,
+      "latencyMs": 375865,
+      "responseLength": 325,
+      "coherenceScore": 0.8415384615384616,
       "success": true
     },
     {
       "query": "Design a comprehensive observability platform that correlates metrics, traces, a",
       "category": "hard",
       "tier": 2,
-      "escalated": true,
+      "escalated": false,
       "escalationPath": [
-        2,
-        3,
         2
       ],
-      "confidence": 0.767,
-      "latencyMs": 357464,
-      "responseLength": 589,
-      "coherenceScore": 0.8852292020373516,
+      "confidence": 0.817,
+      "latencyMs": 312771,
+      "responseLength": 574,
+      "coherenceScore": 0.8796167247386759,
       "success": true
     },
     {
       "query": "What is a load balancer? Then explain how to design one that handles 1M requests",
       "category": "mixed",
-      "tier": 2,
-      "escalated": true,
+      "tier": 1,
+      "escalated": false,
       "escalationPath": [
-        1,
-        2
+        1
       ],
-      "confidence": 0.782,
-      "latencyMs": 88644,
-      "responseLength": 621,
-      "coherenceScore": 0.8922705314009662,
+      "confidence": 0.758,
+      "latencyMs": 36765,
+      "responseLength": 514,
+      "coherenceScore": 0.8470817120622569,
       "success": true
     },
     {
@@ -810,25 +790,24 @@
       "escalationPath": [
         2
       ],
-      "confidence": 0.836,
-      "latencyMs": 57027,
-      "responseLength": 581,
-      "coherenceScore": 0.8814113597246127,
+      "confidence": 0.851,
+      "latencyMs": 57500,
+      "responseLength": 565,
+      "coherenceScore": 0.8964601769911504,
       "success": true
     },
     {
       "query": "What is encryption? Explain it simply, then design a key management system for a",
       "category": "mixed",
-      "tier": 3,
-      "escalated": true,
+      "tier": 2,
+      "escalated": false,
       "escalationPath": [
-        2,
-        3
+        2
       ],
-      "confidence": 0.85,
-      "latencyMs": 305143,
-      "responseLength": 408,
-      "coherenceScore": 0.9125000000000001,
+      "confidence": 0.836,
+      "latencyMs": 32890,
+      "responseLength": 441,
+      "coherenceScore": 0.8823129251700681,
       "success": true
     },
     {
@@ -839,25 +818,24 @@
       "escalationPath": [
         1
       ],
-      "confidence": 0.782,
-      "latencyMs": 26142,
-      "responseLength": 358,
-      "coherenceScore": 0.8709497206703911,
+      "confidence": 0.786,
+      "latencyMs": 20371,
+      "responseLength": 350,
+      "coherenceScore": 0.8885714285714286,
       "success": true
     },
     {
       "query": "What is an API? Then architect a comprehensive API gateway with rate limiting, a",
       "category": "mixed",
-      "tier": 3,
-      "escalated": true,
+      "tier": 2,
+      "escalated": false,
       "escalationPath": [
-        2,
-        3
+        2
       ],
-      "confidence": 0.85,
-      "latencyMs": 310333,
-      "responseLength": 586,
-      "coherenceScore": 0.8832764505119455,
+      "confidence": 0.826,
+      "latencyMs": 44593,
+      "responseLength": 594,
+      "coherenceScore": 0.8937710437710438,
       "success": true
     }
   ]
