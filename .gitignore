@@ -3,4 +3,5 @@ dist/
 .env
 logs/*.jsonl
 logs/sleep/
+logs/vcr/
 config/learned.json
