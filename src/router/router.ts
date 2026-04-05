@@ -6,8 +6,10 @@ import { SpeculativeBuffer } from '../buffer/speculative.js';
 import { Tier1 } from '../tiers/tier1.js';
 import { Tier2 } from '../tiers/tier2.js';
 import { Tier3 } from '../tiers/tier3.js';
-import { logEscalation, hashPrompt } from '../sleep/logger.js';
+import { logEscalation, logRecoveryEvent, hashPrompt } from '../sleep/logger.js';
 import { MetaConfidenceModel } from '../meta/meta-confidence.js';
+import { runWithRecovery, circuitBreaker } from '../recovery/recovery.js';
+import type { RecoveryEvent } from '../recovery/recovery.js';
 import type { Tier, TierQuery, TierResponse, ValenceScore } from '../tiers/tier-interface.js';
 
 const log = pino({ level: process.env.KINDLING_LOG_LEVEL ?? 'info' });
@@ -20,6 +22,7 @@ export interface QueryResult {
   latencyMs: number;
   confidence: number;
   metaAction?: 'confirm' | 'suppress' | 'force';
+  recoveryEvents?: RecoveryEvent[];
 }
 
 export class Router {
@@ -99,11 +102,20 @@ export class Router {
       valenceScore: valence,
     };
 
-    // Generate from starting tier
-    let response = await this.generateFromTier(currentTierId, tierQuery);
+    // Generate from starting tier through the recovery cascade
+    const recoveryEvents: RecoveryEvent[] = [];
+    const firstGen = await this.generateFromTierWithRecovery(currentTierId, tierQuery);
+    let response = firstGen.response;
+    recoveryEvents.push(...firstGen.events);
 
     if (!response) {
       throw new Error('No tier available to handle query');
+    }
+
+    // If recovery downgraded the tier, reflect that in the path
+    if (response.tier !== currentTierId) {
+      escalationPath.push(response.tier);
+      currentTierId = response.tier as 1 | 2 | 3;
     }
 
     // Check escalation signals from the response
@@ -155,10 +167,11 @@ export class Router {
         totalLatencyMs: performance.now() - startTime,
       });
 
-      // Generate from higher tier
-      const escalatedResponse = await this.generateFromTier(currentTierId, tierQuery);
-      if (escalatedResponse) {
-        response = escalatedResponse;
+      // Generate from higher tier through recovery cascade
+      const escalatedGen = await this.generateFromTierWithRecovery(currentTierId, tierQuery);
+      recoveryEvents.push(...escalatedGen.events);
+      if (escalatedGen.response) {
+        response = escalatedGen.response;
       } else {
         // Escalation target unavailable, keep lower tier output
         currentTierId = previousTier;
@@ -203,6 +216,7 @@ export class Router {
       latencyMs: totalLatencyMs,
       confidence: response.confidence,
       metaAction,
+      recoveryEvents: recoveryEvents.length > 0 ? recoveryEvents : undefined,
     };
   }
 
@@ -252,22 +266,74 @@ export class Router {
     return Math.min(1, hasSentences + diversityScore + lengthScore);
   }
 
-  private async generateFromTier(
+  /**
+   * Generate from a tier, running through the 5-layer recovery cascade on failure.
+   * Returns both the response and any recovery events that occurred.
+   */
+  private async generateFromTierWithRecovery(
     tierId: 1 | 2 | 3,
     query: TierQuery
-  ): Promise<TierResponse | null> {
-    // Try requested tier, fall through to next available
-    for (let id = tierId; id <= 3; id++) {
-      const tier = this.tiers.get(id);
-      if (tier && (await tier.isAvailable())) {
-        try {
-          return await tier.generate(query);
-        } catch (err) {
-          log.warn({ tier: id, err }, 'Tier generation failed, trying next');
-        }
+  ): Promise<{ response: TierResponse | null; events: RecoveryEvent[] }> {
+    const allEvents: RecoveryEvent[] = [];
+    const tier = this.tiers.get(tierId);
+
+    if (!tier || !(await tier.isAvailable())) {
+      // Tier not available — try lower tier
+      if (tierId > 1) {
+        return this.generateFromTierWithRecovery((tierId - 1) as 1 | 2 | 3, query);
       }
+      return { response: null, events: allEvents };
     }
-    return null;
+
+    const config = getConfig();
+    const tierConfig = this.getTierConfig(tierId, config);
+
+    const ctx = {
+      tierId,
+      query,
+      primaryGenerate: () => tier.generate(query),
+      fallbackModelGenerate:
+        tier.generateWithModel && tierConfig.fallbackModel
+          ? () => tier.generateWithModel!(query, tierConfig.fallbackModel!)
+          : undefined,
+      apiFallbackGenerate:
+        tier.generateWithApi && tierConfig.apiFallbackModel && process.env.ANTHROPIC_API_KEY
+          ? () => tier.generateWithApi!(query)
+          : undefined,
+      tierDowngradeGenerate:
+        tierId > 1
+          ? async () => {
+              const downResult = await this.generateFromTierWithRecovery(
+                (tierId - 1) as 1 | 2 | 3,
+                query
+              );
+              allEvents.push(...downResult.events);
+              if (!downResult.response) {
+                throw new Error(`Tier ${tierId - 1} downgrade also failed`);
+              }
+              return downResult.response;
+            }
+          : undefined,
+    };
+
+    const result = await runWithRecovery(ctx);
+    allEvents.push(...result.events);
+
+    // Log all recovery events to the escalation log for analyst review
+    for (const ev of result.events) {
+      logRecoveryEvent(ev);
+    }
+
+    return { response: result.response, events: allEvents };
+  }
+
+  private getTierConfig(
+    tierId: 1 | 2 | 3,
+    config: ReturnType<typeof getConfig>
+  ): { fallbackModel?: string; apiFallbackModel?: string } {
+    if (tierId === 1) return config.tier1;
+    if (tierId === 2) return config.tier2;
+    return config.tier3;
   }
 }
 

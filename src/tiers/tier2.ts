@@ -47,13 +47,20 @@ export class Tier2 implements Tier {
   }
 
   async generate(query: TierQuery): Promise<TierResponse> {
-    if (await this.isOllamaModelAvailable()) {
-      return this.generateOllama(query);
+    // Recovery layer handles fallbacks — this method just tries the primary model.
+    // It throws on failure so the recovery cascade can take over.
+    return this.generateOllama(query, this.model);
+  }
+
+  async generateWithModel(query: TierQuery, modelName: string): Promise<TierResponse> {
+    return this.generateOllama(query, modelName);
+  }
+
+  async generateWithApi(query: TierQuery): Promise<TierResponse> {
+    if (!this.anthropicClient) {
+      throw new Error('Tier 2: API fallback not configured (no ANTHROPIC_API_KEY)');
     }
-    if (this.anthropicClient) {
-      return this.generateAPI(query);
-    }
-    throw new Error('Tier 2: No backend available (Ollama model missing, no API key)');
+    return this.generateAPI(query);
   }
 
   private async isOllamaModelAvailable(): Promise<boolean> {
@@ -67,14 +74,14 @@ export class Tier2 implements Tier {
     }
   }
 
-  private async generateOllama(query: TierQuery): Promise<TierResponse> {
+  private async generateOllama(query: TierQuery, modelName: string): Promise<TierResponse> {
     const start = performance.now();
     const systemPrompt = query.context.length > 0
       ? `Previous context:\n${query.context.join('\n')}`
       : '';
 
     const response = await this.ollamaClient.generate({
-      model: this.model,
+      model: modelName,
       system: systemPrompt || undefined,
       prompt: query.prompt,
       options: {
@@ -118,7 +125,7 @@ export class Tier2 implements Tier {
       latencyMs,
       metadata: {
         source: 'ollama',
-        model: this.model,
+        model: modelName,
         hasLogprobs: !!(response.logprobs && response.logprobs.length > 0),
       },
     };

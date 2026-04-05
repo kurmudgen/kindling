@@ -42,6 +42,10 @@ export class Tier1 implements Tier {
   }
 
   async generate(query: TierQuery): Promise<TierResponse> {
+    return this.generateWithModel(query, this.model);
+  }
+
+  async generateWithModel(query: TierQuery, modelName: string): Promise<TierResponse> {
     const start = performance.now();
 
     const systemPrompt = query.context.length > 0
@@ -49,7 +53,7 @@ export class Tier1 implements Tier {
       : '';
 
     const response = await this.client.generate({
-      model: this.model,
+      model: modelName,
       system: systemPrompt || undefined,
       prompt: query.prompt,
       options: {
@@ -94,7 +98,7 @@ export class Tier1 implements Tier {
       latencyMs,
       metadata: {
         source: 'ollama',
-        model: this.model,
+        model: modelName,
         hasLogprobs: !!(response.logprobs && response.logprobs.length > 0),
         logprobCount: response.logprobs?.length ?? 0,
       },

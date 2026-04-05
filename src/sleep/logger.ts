@@ -42,18 +42,58 @@ export function logEscalation(event: Omit<EscalationEvent, 'timestamp' | 'sessio
     sessionId,
     ...event,
   };
-
-  // Fire-and-forget async write — don't block the hot path
-  (async () => {
-    if (!existsSync(LOG_DIR)) {
-      await mkdir(LOG_DIR, { recursive: true });
-    }
-    await appendFile(LOG_FILE, JSON.stringify(fullEvent) + '\n', 'utf-8');
-  })().catch(() => {
-    // Swallow write errors — logging should never crash the runtime
-  });
+  enqueueWrite(JSON.stringify(fullEvent) + '\n');
 }
 
 export function getLogFilePath(): string {
   return LOG_FILE;
+}
+
+export interface RecoveryLogEntry {
+  timestamp: string;
+  sessionId: string;
+  type: 'recovery';
+  layer: string;
+  reason: string;
+  originalTier: number;
+  recoveredTier: number;
+  success: boolean;
+}
+
+export function logRecoveryEvent(event: {
+  layer: string;
+  reason: string;
+  originalTier: number;
+  recoveredTier: number;
+  success: boolean;
+  timestamp?: string;
+}): void {
+  const entry: RecoveryLogEntry = {
+    timestamp: event.timestamp ?? new Date().toISOString(),
+    sessionId,
+    type: 'recovery',
+    layer: event.layer,
+    reason: event.reason,
+    originalTier: event.originalTier,
+    recoveredTier: event.recoveredTier,
+    success: event.success,
+  };
+
+  enqueueWrite(JSON.stringify(entry) + '\n');
+}
+
+// Serialized write queue — prevents interleaved writes from concurrent queries
+let writeQueue: Promise<void> = Promise.resolve();
+
+function enqueueWrite(line: string): void {
+  writeQueue = writeQueue
+    .then(async () => {
+      if (!existsSync(LOG_DIR)) {
+        await mkdir(LOG_DIR, { recursive: true });
+      }
+      await appendFile(LOG_FILE, line, 'utf-8');
+    })
+    .catch(() => {
+      // Swallow — logging must not crash the runtime
+    });
 }

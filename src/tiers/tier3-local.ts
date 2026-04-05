@@ -81,6 +81,10 @@ export class Tier3Local implements Tier {
   }
 
   async generate(query: TierQuery): Promise<TierResponse> {
+    return this.generateWithModel(query, this.model);
+  }
+
+  async generateWithModel(query: TierQuery, modelName: string): Promise<TierResponse> {
     const start = performance.now();
 
     const systemPrompt = query.context.length > 0
@@ -88,7 +92,7 @@ export class Tier3Local implements Tier {
       : '';
 
     const response = await this.client.generate({
-      model: this.model,
+      model: modelName,
       system: systemPrompt || undefined,
       prompt: query.prompt,
       options: {
@@ -132,7 +136,7 @@ export class Tier3Local implements Tier {
       latencyMs,
       metadata: {
         source: 'ollama-local',
-        model: this.model,
+        model: modelName,
         hasLogprobs: !!(response.logprobs && response.logprobs.length > 0),
         evalCount: response.eval_count,
         evalDuration: response.eval_duration,

@@ -84,6 +84,22 @@ export class Tier3 implements Tier {
     throw new Error('Tier 3: No backend available');
   }
 
+  async generateWithModel(query: TierQuery, modelName: string): Promise<TierResponse> {
+    if (this.localTier && (await this.localTier.isAvailable())) {
+      return this.localTier.generateWithModel
+        ? this.localTier.generateWithModel(query, modelName)
+        : this.localTier.generate(query);
+    }
+    throw new Error('Tier 3: Cannot use model fallback without local tier');
+  }
+
+  async generateWithApi(query: TierQuery): Promise<TierResponse> {
+    if (!this.apiClient) {
+      throw new Error('Tier 3: API fallback not configured');
+    }
+    return this.generateAPI(query);
+  }
+
   private async generateAPI(query: TierQuery): Promise<TierResponse> {
     const start = performance.now();
     const messages: Anthropic.MessageParam[] = [];

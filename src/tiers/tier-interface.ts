@@ -34,4 +34,8 @@ export interface Tier {
   generate(query: TierQuery): Promise<TierResponse>;
   isAvailable(): Promise<boolean>;
   warmup(): Promise<void>;
+  /** Optional: generate using a specific model name (for recovery fallbacks) */
+  generateWithModel?(query: TierQuery, modelName: string): Promise<TierResponse>;
+  /** Optional: generate using API fallback (for recovery cascade) */
+  generateWithApi?(query: TierQuery): Promise<TierResponse>;
 }
