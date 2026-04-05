@@ -6,7 +6,9 @@ import pino from 'pino';
 import { getConfig, readLearnedStore } from '../config/config.js';
 import type { LearnedStore, LearnedAdjustment } from '../config/config.js';
 import { getLogFilePath, getSessionId } from './logger.js';
+import type { EscalationEvent } from './logger.js';
 import { ConceptPrewarmer } from './prewarmer.js';
+import { compactLog } from './compactor.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -140,16 +142,45 @@ export class SleepAnalyst {
     }
 
     const config = getConfig();
+    // Parse raw JSONL events and filter to escalations (skip recovery entries)
+    const parsedEvents: EscalationEvent[] = events
+      .map(e => {
+        try {
+          return JSON.parse(e);
+        } catch {
+          return null;
+        }
+      })
+      .filter((e): e is EscalationEvent => e !== null && !('type' in e));
+
+    // Compact the log before sending to the API
+    const compacted = compactLog({
+      sessionId,
+      events: parsedEvents,
+      sessionStartTime: parsedEvents[0]?.timestamp,
+      sessionEndTime: parsedEvents[parsedEvents.length - 1]?.timestamp,
+    });
+
+    log.info(
+      {
+        rawTokens: compacted.tokenBudgetEstimate.rawTokensEst,
+        compactedTokens: compacted.tokenBudgetEstimate.compactedTokensEst,
+        reductionPct: compacted.tokenBudgetEstimate.reductionPct.toFixed(1),
+      },
+      'Compacted escalation log for analyst'
+    );
+
     const payload = {
       sessionId,
-      eventCount: events.length,
-      events: events.map(e => JSON.parse(e)),
+      eventCount: parsedEvents.length,
+      summary: compacted.summaryHeader,
+      events: compacted.compactedEvents,
       currentWeights: config.escalation,
     };
 
     // Load prior session context for longitudinal awareness
     const priorSessions = this.loadPriorSessions(3);
-    let userContent = `Analyze this escalation session and respond with JSON only:\n\n${JSON.stringify(payload, null, 2)}`;
+    let userContent = `Analyze this compacted escalation session and respond with JSON only:\n\n${JSON.stringify(payload, null, 2)}`;
 
     if (priorSessions.length > 0) {
       userContent += `\n\n--- PRIOR SESSION ANALYSES (${priorSessions.length} most recent) ---\n`;
