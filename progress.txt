@@ -1,112 +1,180 @@
-KINDLING BUILD — Phase 3.5 In Progress
-Last updated: 2026-04-05T01:10:00Z
+KINDLING BUILD — Phase 3.5 Complete
+Last updated: 2026-04-05T01:30:00Z
 Repo: https://github.com/kurmudgen/kindling
+
+PHASE 3.5 STATUS: COMPLETE — all 7 milestones PASS
 
 ==========================================================================
 PHASE 3.5 SELF REVIEW — PRODUCTION HARDENING
 ==========================================================================
 
-CURRENT ERROR HANDLING ACROSS THREE TIERS:
+CURRENT ERROR HANDLING ACROSS THREE TIERS (pre-Phase 3.5):
 
 Tier 1 (tier1.ts): One path, no retries. If Ollama's generate() throws,
-the error bubbles up to the router. No timeout wrapping. No fallback
-model. If the model isn't pulled, warmup() throws a user-friendly error
-but generate() just dies.
+the error bubbles up. No timeout, no fallback model.
 
-Tier 2 (tier2.ts): Has a secondary path (API fallback via
-generateAPI()) but only activates when isOllamaModelAvailable() returns
-false at call time. If Ollama is up but the model is slow/stuck, it
-hangs indefinitely. No retry. No timeout. The API fallback itself has
-no retry — a 500 from Anthropic kills the query.
+Tier 2 (tier2.ts): Had secondary API fallback path but only activated
+at the tier level — a runtime Ollama hang would block indefinitely.
+No retry, no timeout.
 
-Tier 3 (tier3.ts): Routes between Tier3Local and API. The fallback
-from local to API has a single try/catch but no retry. If BOTH fail,
-throws "Tier 3: No backend available". The router catches this and
-tries the next lower tier, but that's ad-hoc not structured.
+Tier 3 (tier3.ts): Routed between local and API with a single try/catch.
+Both failing threw "No backend available".
 
-Router (router.ts:255-271): The generateFromTier() method has a loop
-that walks upward from the requested tier. If a tier fails, it tries
-the NEXT HIGHER tier — this is wrong for failure recovery. Failure
-should cascade DOWN to cheaper tiers, not up to more expensive ones.
-The current behavior means a Tier 1 failure tries Tier 2, which
-defeats the "low burn" promise and wastes budget on infrastructure
-failures rather than genuine escalation needs.
+Router (router.ts): generateFromTier() walked UP on failure to more
+expensive tiers — wrong direction. Infrastructure failures should
+cascade DOWN to cheaper tiers, not up to more expensive ones.
 
-No circuit breaker. No retry with backoff. No structured recovery
-cascade. This is not production-grade.
+No circuit breaker, no retries, no structured recovery. Not production-grade.
 
-LEARNED.JSON ACCUMULATION OVER TIME:
+LEARNED.JSON ACCUMULATION (pre-Phase 3.5):
 
-Current learned.json schema:
-  { "escalation": { "escalationThreshold": 0.36, ... } }
+Flat keyed object with no timestamps or session counts. Each new sleep
+session OVERWROTE adjustments for touched signals. Stale recommendations
+from 20 sessions ago persisted with full weight until a newer session
+touched them. No decay — system could not forget.
 
-Flat keyed object. No timestamps. No session counts. No decay.
-When the analyst runs a new session, applyAdjustments() reads the
-existing learned.json, SETS each signal's new value (overwrite,
-not blend), and writes back. This means:
+CONCURRENT QUERIES (pre-Phase 3.5):
 
-1. The most recent session always wins completely — there's no
-   smoothing across sessions.
-2. A stale recommendation from 20 sessions ago has the same weight
-   as one from last session (until a newer session overwrites it).
-3. If signal X was adjusted 10 sessions ago but no session has
-   touched it since, it sits in learned.json forever at its original
-   learned value, never decaying back toward defaults even if usage
-   patterns have changed.
+Router shared mutable state (confidence, buffer, meta) across queries.
+Two concurrent queryDetailed() calls would corrupt each other. Log
+writes used fire-and-forget appendFile which could interleave.
 
-This is a meaningful hardening gap.
+SLEEP ANALYST LOG INPUT (pre-Phase 3.5):
 
-CONCURRENT QUERIES:
-
-The router has shared mutable state:
-- this.confidence (ConfidenceAggregator) — has internal
-  deescalationCounter state, reset() is called per query.
-- this.buffer (SpeculativeBuffer) — reset() per query.
-- this.meta (MetaConfidenceModel) — shared history array.
-
-If two queryDetailed() calls happen concurrently, they will BOTH
-call reset() on confidence and buffer, step on each other's state,
-and produce corrupted routing decisions.
-
-The module-level _router singleton at line 275 means the same Router
-instance is reused across all query() calls. There's no isolation.
-
-The logger writes are already async (logEscalation uses fire-and-
-forget appendFile), but if two writes happen in the same event loop
-tick they can potentially interleave.
-
-SLEEP ANALYST LOG INPUT:
-
-Currently analyst.ts reads the ENTIRE escalation.jsonl, filters to
-the current sessionId, parses all events, and sends the full array
-in the payload. No compaction. For a benchmark run with 55 queries
-and 20 escalations, that's 20 full event objects plus the prior
-sessions context — easily 8000+ tokens of input before the response
-budget of 8192 even kicks in.
-
-The good news: escalation.jsonl only contains ESCALATION events,
-not every query. So the raw log is already partially compacted.
-But medium-scale sessions will still blow the context budget.
-
-WHAT I WOULD HARDEN BEFORE CALLING THIS PRODUCTION-READY:
-
-1. Generate-number concurrency isolation (router per-query state)
-2. Proper failure cascade (fail DOWN not UP on infrastructure errors)
-3. Retry with backoff for transient Ollama/API failures
-4. Circuit breaker for sustained infrastructure degradation
-5. Learned weight decay so the system forgets stale patterns
-6. Log compaction before analyst calls
-7. Fallback model per tier in config (not just API fallback)
-8. Dream task scheduler that runs on idle without user intervention
-9. VCR replay tool for debugging routing decisions after-the-fact
-10. Concurrent query isolation in the router
-
-Phase 3.5 covers items 1, 2, 3, 4, 5, 6, 8, 9, 10. Item 7 is covered
-as part of the 5-layer recovery milestone.
+Full raw escalation.jsonl parsed and sent to API. No compaction.
+50-query sessions would push 8000+ tokens before analysis budget.
 
 ==========================================================================
+MILESTONE OUTCOMES
+==========================================================================
+
 MILESTONE 1 — CODEBASE HEALTH: PASS
+  Build clean, 12/12 tests pass. No regressions from Phase 3.
+
+MILESTONE 2 — MEMORY DECAY: PASS
+  - learned.json schema: sessionCount + adjustments[] with per-entry
+    appliedAt timestamp and sessionAge counter
+  - applyDecay(default, suggested, age, halfLife): exponential decay
+    formula. Half-life configurable per profile (default 10).
+  - config.ts loads learned.json and applies decay during merge
+  - analyst.ts increments sessionAge on all existing entries each
+    session before adding new ones
+  - weight-diff.ts shows raw, effective, decay factor, session age
+  - Legacy (Phase 3) learned.json schema auto-migrates
+  - Verified: age=0 is 100%, age=10 is 50%, age=20 is 25% — exact
+  - End-to-end loadConfig with aged synthetic data: decays correctly
+  Tool: src/tools/test-decay.ts
+
+MILESTONE 3 — 5-LAYER ERROR RECOVERY: PASS
+  src/recovery/recovery.ts implements:
+  - Layer 1: Retry with exponential backoff (1s, 2s, 4s) for
+    transient errors (ECONNRESET, ETIMEDOUT, fetch failed, timeouts)
+  - Layer 2: Tier downgrade — fail DOWN on infrastructure failure
+    (not up, which was wrong)
+  - Layer 3: Model fallback — fallbackModel per tier in config
+  - Layer 4: API fallback — apiFallbackModel via Anthropic
+  - Layer 5: Circuit breaker — trips after 3 consecutive degradations,
+    logs warning, resets on first clean query
+  - Timeout wrapper on every tier call (configurable, default 120s)
+  - All tier classes now expose generateWithModel() and
+    generateWithApi() hooks for the cascade
+  - Recovery events logged to escalation.jsonl via logRecoveryEvent
+  - Write queue serializes all log writes across concurrent calls
+
+  Verified: simulated Tier 2 failure (bogus model names) triggered
+  cascade through model_fallback → api_fallback, query succeeded
+  via Haiku API, 2 recovery events logged. Gate: PASS.
+  Tool: src/tools/test-recovery.ts
+
+MILESTONE 4 — LOG COMPACTION: PASS
+  src/sleep/compactor.ts three-tier strategy:
+  - Tier 1: Strip redundant fields, use 1-2 char key names
+  - Tier 2: Collapse runs of 3+ similar events into repetition summary
+  - Tier 3: One-line structured session summary header
+  - analyst.ts runs compactLog() before API call and logs reduction
+
+  Results on real sessions: 73-83% token reduction
+  Synthetic 50-event log: 3874 → 945 tokens (75.6% reduction, well
+  under the 2000-token gate target).
+  Tool: src/tools/test-compactor.ts
+
+MILESTONE 5 — VCR SESSION REPLAY: PASS
+  src/tools/vcr.ts implements:
+  - Record mode (KINDLING_VCR=record): writes every routing decision
+    to logs/vcr/<uuid>.jsonl with signals, valence, start/final tier,
+    confidence, router decision, meta action, recovery event count
+  - Privacy: prompt HASH only, never raw prompt text
+  - Replay mode (KINDLING_VCR=replay + KINDLING_VCR_FILE=path):
+    re-runs each recorded decision through current confidence +
+    meta model, diffs against recorded, reports matches and reasons
+    for mismatches
+  - Router emits VCR entry after every query when recording active
+
+  Verified: 5-query record session, privacy check passed (no raw
+  prompts in file), structure check passed, replay produced 5/5
+  match when config unchanged.
+  Tool: src/tools/test-vcr.ts
+
+MILESTONE 6 — DREAM TASKS: PASS
+  Background auto-sleep infrastructure in analyst.ts:
+  - startIdleMonitor(checkIntervalMs): periodic idle check
+  - Fires when idle >= idleThresholdMinutes AND
+    queriesSinceLastSleep >= autoSleepMinQueries
+  - runDreamTask(): background, non-blocking, fire-and-forget
+  - Logs start/complete/failed/skipped to logs/dream.jsonl
+  - onNotification(callback) for REPL display hook
+  - KINDLING_DREAM=false env var disables dream tasks entirely
+  - Dream task queue: if new query arrives during dream, query
+    processes normally, dream continues in background, lastQueryTime
+    resets at end
+
+  Verified: 6-query burst with 6-second idle threshold and min 5
+  queries triggered dream task at idle=7s, complete logged to
+  dream.jsonl. Gate: PASS.
+  Tool: src/tools/test-dream.ts
+
+MILESTONE 7 — CONCURRENCY GUARD: PASS
+  src/router/concurrency.ts implements:
+  - ConcurrencyGuard with monotonic generation numbers
+  - acquire/release/isActive/inFlightCount methods
+  - Router now creates per-query ConfidenceAggregator and
+    SpeculativeBuffer instances instead of sharing singletons
+  - Meta-confidence remains shared (intentional — learns across queries)
+  - Log writes serialized via enqueueWrite() queue in logger.ts
+
+  Tests added to vitest suite: 7 new tests (monotonic assignment,
+  active tracking, release idempotency, 100 concurrent generations,
+  stale detection, reset). Total suite: 19/19 passing.
+
+  Integration test: 4 queries via Promise.all completed cleanly,
+  all in-flight count back to 0, no log corruption. Gate: PASS.
+  Tool: src/tools/test-concurrency.ts
+
 ==========================================================================
-  npm run build: clean (0 errors)
-  npm test: 12/12 pass
-  No regressions from Phase 3.
+PHASE 3.5 TOOLS ADDED
+==========================================================================
+
+Production code:
+- src/recovery/recovery.ts — 5-layer cascade + CircuitBreaker
+- src/router/concurrency.ts — ConcurrencyGuard
+- src/router/concurrency.test.ts — 7 unit tests
+- src/sleep/compactor.ts — three-tier log compaction
+- src/tools/vcr.ts — record/replay for routing decisions
+
+Verification tools:
+- src/tools/test-decay.ts — decay formula + end-to-end merge
+- src/tools/test-recovery.ts — simulated tier failure cascade
+- src/tools/test-compactor.ts — real + synthetic log compaction
+- src/tools/test-vcr.ts — record + replay round trip
+- src/tools/test-dream.ts — auto-trigger verification
+- src/tools/test-concurrency.ts — parallel query integration
+
+==========================================================================
+PHASE 4 START POINT
+==========================================================================
+
+- Meta-confidence model upgrade to lightweight ML (sklearn or ONNX)
+- Shadow mode — watch Claude API responses as ground truth teacher
+- Full benchmark suite expansion with Phase 3.5 metrics
+- README update with all phase results
+- Begin swarm prototype planning
