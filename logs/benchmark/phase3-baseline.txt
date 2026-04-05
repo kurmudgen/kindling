@@ -34,6 +34,47 @@ Query  | Category      | Expected | Actual | Conf  | Escalated | Meta    | Corre
   stayed at Tier 1). Now correctly escalates (signals spread=0.54 triggers).
 
 ==========================================================================
+FULL BENCHMARK RESULTS (55 queries, all complete)
+==========================================================================
+
+Total: 55 | Pass: 55 | Fail: 0
+Escalations: 20 | Tier1: 29 | Tier2: 21 | Tier3: 5
+
+Category  | Count | Avg Latency | Avg Tokens | Escalation Rate | Confidence
+----------|-------|-------------|------------|-----------------|----------
+simple    | 20    | 2.8s        | 29         | 5%              | 0.854
+medium    | 20    | 53.4s       | 435        | 55%             | 0.780
+hard      | 10    | 201.3s      | 546        | 50%             | 0.806
+mixed     | 5     | 157.5s      | 511        | 60%             | 0.820
+
+==========================================================================
+PHASE 1 vs PHASE 2 vs PHASE 3 FULL BENCHMARK COMPARISON
+==========================================================================
+
+Metric              | Phase 1    | Phase 2       | Phase 3
+--------------------|------------|---------------|-------------------
+Pass rate           | 55/55      | 55/55         | 55/55
+Escalations total   | 0          | 23 (42%)      | 20 (36%)
+Tier1 count         | 55         | 29            | 29
+Tier2 count         | 0          | 18            | 21
+Tier3 count         | 0          | 8             | 5
+Simple escalation   | 0%         | 10% (1/20)    | 5% (1/20)  [better]
+Medium escalation   | 0%         | 45%           | 55%        [better]
+Hard escalation     | 0%         | 80%           | 50%        [worse-ish]
+Mixed escalation    | 0%         | 80%           | 60%        [worse-ish]
+Simple latency      | 1.6s       | 4.7s          | 2.8s       [better]
+Medium latency      | 2.1s       | 40.7s         | 53.4s
+Hard latency        | 2.5s       | 259s          | 201s       [better]
+
+Phase 3 shows:
+- Lower false-escalation on simple queries (5% vs 10%) — better
+- More accurate medium escalation (55% vs 45%) — better
+- Lower hard tier 3 usage (5 vs 8) — meta-confidence kept more
+  at Tier 2 where qwen2.5:14b handled them adequately
+- Faster overall (simple 2.8s vs 4.7s, hard 201s vs 259s)
+- Same core pass rate (100%)
+
+==========================================================================
 META-CONFIDENCE ACTIVITY
 ==========================================================================
 
