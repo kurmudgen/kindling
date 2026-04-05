@@ -2,18 +2,25 @@
   "profile": "ddr4-budget",
   "tier1": {
     "model": "qwen2.5:0.5b",
+    "fallbackModel": "phi3:mini",
+    "apiFallbackModel": "claude-haiku-4-5-20251001",
     "maxCores": 4,
     "quantization": "q4_0"
   },
   "tier2": {
     "model": "qwen2.5:7b",
+    "fallbackModel": "mistral:7b",
+    "apiFallbackModel": "claude-haiku-4-5-20251001",
     "maxCores": 4,
     "quantization": "q4_0",
     "apiFallback": true
   },
   "tier3": {
     "model": "claude-sonnet-4-6",
-    "apiOnly": true
+    "apiOnly": false,
+    "localModel": "qwen2.5:14b",
+    "fallbackLocalModel": "qwen2.5:7b",
+    "apiFallbackModel": "claude-sonnet-4-6"
   },
   "buffer": {
     "size": 2
@@ -29,6 +36,14 @@
   },
   "sleep": {
     "idleThresholdMinutes": 5,
-    "apiModel": "claude-sonnet-4-6"
+    "apiModel": "claude-sonnet-4-6",
+    "decayHalfLifeSessions": 8,
+    "autoSleepMinQueries": 8
+  },
+  "recovery": {
+    "maxRetries": 3,
+    "backoffBaseMs": 1000,
+    "tierGenerationTimeoutMs": 90000,
+    "circuitBreakerThreshold": 3
   }
 }

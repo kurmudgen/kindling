@@ -2,18 +2,25 @@
   "profile": "prosumer",
   "tier1": {
     "model": "qwen2.5:3b",
+    "fallbackModel": "qwen2.5:1.5b",
+    "apiFallbackModel": "claude-haiku-4-5-20251001",
     "maxCores": 8,
     "quantization": "q4_k_m"
   },
   "tier2": {
     "model": "gemma2:27b",
+    "fallbackModel": "qwen2.5:14b",
+    "apiFallbackModel": "claude-haiku-4-5-20251001",
     "maxCores": 12,
     "quantization": "q4_k_m",
     "apiFallback": true
   },
   "tier3": {
     "model": "claude-sonnet-4-6",
-    "apiOnly": true
+    "apiOnly": false,
+    "localModel": "qwen2.5:32b",
+    "fallbackLocalModel": "gemma2:27b",
+    "apiFallbackModel": "claude-sonnet-4-6"
   },
   "buffer": {
     "size": 6
@@ -29,6 +36,14 @@
   },
   "sleep": {
     "idleThresholdMinutes": 5,
-    "apiModel": "claude-sonnet-4-6"
+    "apiModel": "claude-sonnet-4-6",
+    "decayHalfLifeSessions": 12,
+    "autoSleepMinQueries": 10
+  },
+  "recovery": {
+    "maxRetries": 3,
+    "backoffBaseMs": 1000,
+    "tierGenerationTimeoutMs": 180000,
+    "circuitBreakerThreshold": 3
   }
 }

@@ -3,7 +3,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import pino from 'pino';
-import { getConfig } from '../config/config.js';
+import { getConfig, readLearnedStore } from '../config/config.js';
+import type { LearnedStore, LearnedAdjustment } from '../config/config.js';
 import { getLogFilePath, getSessionId } from './logger.js';
 import { ConceptPrewarmer } from './prewarmer.js';
 
@@ -246,29 +247,52 @@ export class SleepAnalyst {
   }
 
   private applyAdjustments(adjustments: RoutingAdjustment[] | undefined | null): void {
-    if (!adjustments || adjustments.length === 0) return;
-
     const learnedPath = resolve(CONFIG_DIR, 'learned.json');
-    let learned: Record<string, unknown> = {};
-    if (existsSync(learnedPath)) {
-      learned = JSON.parse(readFileSync(learnedPath, 'utf-8'));
+
+    // Load existing store, or initialize a fresh one
+    let store: LearnedStore = readLearnedStore(learnedPath) ?? {
+      sessionCount: 0,
+      adjustments: [],
+    };
+
+    // Increment session age on all existing adjustments before adding new ones
+    for (const existing of store.adjustments) {
+      existing.sessionAge += 1;
+    }
+    store.sessionCount += 1;
+
+    if (!adjustments || adjustments.length === 0) {
+      // Still persist the incremented session count / ages
+      writeFileSync(learnedPath, JSON.stringify(store, null, 2), 'utf-8');
+      log.info(
+        { sessionCount: store.sessionCount },
+        'No new adjustments; aged existing learned weights'
+      );
+      return;
     }
 
-    const escalation = (learned.escalation ?? {}) as Record<string, number>;
+    const now = new Date().toISOString();
 
     for (const adj of adjustments) {
       const key = this.signalToConfigKey(adj.signal);
-      if (key) {
-        escalation[key] = adj.suggestedWeight;
-        log.info(
-          { signal: adj.signal, from: adj.currentWeight, to: adj.suggestedWeight },
-          `Applying routing adjustment: ${adj.reason}`
-        );
-      }
+      if (!key) continue;
+
+      // Replace any existing adjustment for this signal
+      store.adjustments = store.adjustments.filter(a => a.signal !== key);
+      store.adjustments.push({
+        signal: key,
+        suggestedWeight: adj.suggestedWeight,
+        appliedAt: now,
+        sessionAge: 0,
+      });
+
+      log.info(
+        { signal: adj.signal, from: adj.currentWeight, to: adj.suggestedWeight },
+        `Applying routing adjustment: ${adj.reason}`
+      );
     }
 
-    learned.escalation = escalation;
-    writeFileSync(learnedPath, JSON.stringify(learned, null, 2), 'utf-8');
+    writeFileSync(learnedPath, JSON.stringify(store, null, 2), 'utf-8');
   }
 
   private signalToConfigKey(signal: string): string | null {
