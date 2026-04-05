@@ -1,184 +1,112 @@
-KINDLING BUILD — Phase 3 Complete
-Last updated: 2026-04-04T23:55:00Z
+KINDLING BUILD — Phase 3.5 In Progress
+Last updated: 2026-04-05T01:10:00Z
 Repo: https://github.com/kurmudgen/kindling
 
-PHASE 3 STATUS: COMPLETE (with 1 partial pass due to API key blocker)
-
 ==========================================================================
-MILESTONE OUTCOMES
+PHASE 3.5 SELF REVIEW — PRODUCTION HARDENING
 ==========================================================================
 
+CURRENT ERROR HANDLING ACROSS THREE TIERS:
+
+Tier 1 (tier1.ts): One path, no retries. If Ollama's generate() throws,
+the error bubbles up to the router. No timeout wrapping. No fallback
+model. If the model isn't pulled, warmup() throws a user-friendly error
+but generate() just dies.
+
+Tier 2 (tier2.ts): Has a secondary path (API fallback via
+generateAPI()) but only activates when isOllamaModelAvailable() returns
+false at call time. If Ollama is up but the model is slow/stuck, it
+hangs indefinitely. No retry. No timeout. The API fallback itself has
+no retry — a 500 from Anthropic kills the query.
+
+Tier 3 (tier3.ts): Routes between Tier3Local and API. The fallback
+from local to API has a single try/catch but no retry. If BOTH fail,
+throws "Tier 3: No backend available". The router catches this and
+tries the next lower tier, but that's ad-hoc not structured.
+
+Router (router.ts:255-271): The generateFromTier() method has a loop
+that walks upward from the requested tier. If a tier fails, it tries
+the NEXT HIGHER tier — this is wrong for failure recovery. Failure
+should cascade DOWN to cheaper tiers, not up to more expensive ones.
+The current behavior means a Tier 1 failure tries Tier 2, which
+defeats the "low burn" promise and wastes budget on infrastructure
+failures rather than genuine escalation needs.
+
+No circuit breaker. No retry with backoff. No structured recovery
+cascade. This is not production-grade.
+
+LEARNED.JSON ACCUMULATION OVER TIME:
+
+Current learned.json schema:
+  { "escalation": { "escalationThreshold": 0.36, ... } }
+
+Flat keyed object. No timestamps. No session counts. No decay.
+When the analyst runs a new session, applyAdjustments() reads the
+existing learned.json, SETS each signal's new value (overwrite,
+not blend), and writes back. This means:
+
+1. The most recent session always wins completely — there's no
+   smoothing across sessions.
+2. A stale recommendation from 20 sessions ago has the same weight
+   as one from last session (until a newer session overwrites it).
+3. If signal X was adjusted 10 sessions ago but no session has
+   touched it since, it sits in learned.json forever at its original
+   learned value, never decaying back toward defaults even if usage
+   patterns have changed.
+
+This is a meaningful hardening gap.
+
+CONCURRENT QUERIES:
+
+The router has shared mutable state:
+- this.confidence (ConfidenceAggregator) — has internal
+  deescalationCounter state, reset() is called per query.
+- this.buffer (SpeculativeBuffer) — reset() per query.
+- this.meta (MetaConfidenceModel) — shared history array.
+
+If two queryDetailed() calls happen concurrently, they will BOTH
+call reset() on confidence and buffer, step on each other's state,
+and produce corrupted routing decisions.
+
+The module-level _router singleton at line 275 means the same Router
+instance is reused across all query() calls. There's no isolation.
+
+The logger writes are already async (logEscalation uses fire-and-
+forget appendFile), but if two writes happen in the same event loop
+tick they can potentially interleave.
+
+SLEEP ANALYST LOG INPUT:
+
+Currently analyst.ts reads the ENTIRE escalation.jsonl, filters to
+the current sessionId, parses all events, and sends the full array
+in the payload. No compaction. For a benchmark run with 55 queries
+and 20 escalations, that's 20 full event objects plus the prior
+sessions context — easily 8000+ tokens of input before the response
+budget of 8192 even kicks in.
+
+The good news: escalation.jsonl only contains ESCALATION events,
+not every query. So the raw log is already partially compacted.
+But medium-scale sessions will still blow the context budget.
+
+WHAT I WOULD HARDEN BEFORE CALLING THIS PRODUCTION-READY:
+
+1. Generate-number concurrency isolation (router per-query state)
+2. Proper failure cascade (fail DOWN not UP on infrastructure errors)
+3. Retry with backoff for transient Ollama/API failures
+4. Circuit breaker for sustained infrastructure degradation
+5. Learned weight decay so the system forgets stale patterns
+6. Log compaction before analyst calls
+7. Fallback model per tier in config (not just API fallback)
+8. Dream task scheduler that runs on idle without user intervention
+9. VCR replay tool for debugging routing decisions after-the-fact
+10. Concurrent query isolation in the router
+
+Phase 3.5 covers items 1, 2, 3, 4, 5, 6, 8, 9, 10. Item 7 is covered
+as part of the 5-layer recovery milestone.
+
+==========================================================================
 MILESTONE 1 — CODEBASE HEALTH: PASS
-  Build clean, 12/12 tests pass, no regressions.
-
-MILESTONE 2 — SIGNAL QUALITY AUDIT: PASS
-  Simple avg confidence: 0.856, avg spread: 0.282
-  Medium avg confidence: 0.763, avg spread: 0.411
-  Hard   avg confidence: 0.760, avg spread: 0.431
-  Spread differentiation: 0.149 (PASS > 0.05 threshold)
-  Hard queries correctly trigger escalation signal.
-  Tool: src/tools/signal-audit.ts
-
-MILESTONE 3 — SLEEP ANALYST QUALITY: PASS (valid API key provided)
-  User provided a valid ANTHROPIC_API_KEY and the sleep analyst ran
-  end-to-end successfully. Two sequential sessions produced specific,
-  actionable, and longitudinally-aware output.
-
-  BUGS FOUND AND FIXED DURING TESTING:
-  1. Analyst field schema was ambiguous — Claude initially returned
-     "patternsSummary" / "routingWeightAdjustments" / "preWarmingRecommendations"
-     instead of the expected snake_case names. FIX: Updated system prompt
-     to include an explicit JSON schema with exact field names and
-     "CRITICAL" constraints.
-  2. applyAdjustments() crashed when routing_adjustments was undefined.
-     FIX: Added null/undefined guard.
-  3. max_tokens=2048 was too small for the detailed analyst output —
-     responses got truncated mid-JSON and failed to parse.
-     FIX: Raised to 8192 and added length constraints to the prompt.
-
-  GATE CRITERIA (all met):
-  - concepts_to_prewarm: 4 specific concepts from actual queries. PASS.
-    Example: "near-zero complexity low-stakes query resolution"
-  - routing_adjustments: 5 specific adjustments with signal names,
-    current/suggested weights, and detailed rationale. PASS.
-    Example: tokenProbabilitySpread 0.35 → 0.24 with 2-sentence reason.
-  - session_summary: Paragraph describing specific events, composite
-    scores, sessionIds, and cross-session patterns. PASS.
-  - confidence_model_notes: 3 specific observations including the
-    identification of a 0.677–0.715 calibration band across 8 escalations
-    spanning two sessions. PASS.
-
-  LONGITUDINAL MEMORY VERIFIED:
-  Every routing_adjustment in session 2 explicitly references the prior
-  session's recommendation and notes whether it was applied:
-  "Prior session recommended reducing from 0.35 to 0.26; unapplied..."
-  This is exactly what Milestone 7 required — the analyst noticed its
-  own recommendations weren't applied last time and adjusted accordingly.
-
-MILESTONE 4 — SOFT WEIGHT UPDATES: PASS
-  Weight merge pipeline verified end-to-end:
-  - config.ts deep-merges learned.json over defaults: PASS
-  - Untouched weights preserved during merge: PASS
-  - KINDLING_IGNORE_LEARNED env flag bypasses merge: PASS
-  - Synthetic learned.json correctly affects runtime config: PASS
-  Tool: src/tools/weight-diff.ts, src/tools/test-weight-merge.ts
-
-MILESTONE 5 — COLD CONCEPT WARMING: PASS
-  Measured result on "JWT authentication" concept:
-  - Before warming (3 queries): avg 7290ms
-  - After warming (3 queries):  avg 6004ms
-  - Improvement: 17.6% latency reduction
-  - Warming cost: 258ms (one-time)
-  The effect is real and measurable. Likely comes from the model
-  staying hot in RAM/CPU cache rather than cold-starting.
-  Tool: src/tools/warmup-bench.ts
-
-MILESTONE 6 — META-CONFIDENCE MODEL: PASS
-  Implementation: src/meta/meta-confidence.ts
-  - Sliding window (50 records) of routing decisions + outcomes
-  - Per-signal correction factors learned from recent history
-  - Three actions: confirm (no change), suppress (block escalation),
-    force (escalate despite router)
-  - Every decision logged to logs/meta.jsonl
-  - Wired into router.ts:106-123
-
-  Phase 3 REPL test (13 queries):
-  - 13 meta decisions made
-  - All "confirm" (expected — meta seeds history gradually)
-  - Routing accuracy: 12/13 = 92% (up from 11/13 = 85% in Phase 2)
-  - Query 8 "Explain how garbage collection works" now correctly
-    escalates (was false-negative in Phase 2)
-
-  The improvement from 85% → 92% is NOT directly from meta-confidence
-  interventions (none fired yet due to cold start). It is likely from
-  the Phase 3 router restructure and earlier decision timing.
-
-MILESTONE 7 — LONGITUDINAL SLEEP MEMORY: PASS (verified end-to-end)
-  analyst.ts updated to:
-  - Load 3 most recent sleep session outputs via loadPriorSessions()
-  - Include them in the API call as prior context
-  - System prompt instructs the analyst to build on previous findings
-  VERIFIED: Second session explicitly referenced the first session's
-  recommendations in every routing_adjustment, noting whether they
-  had been applied. Example quote from session 2 output:
-  "Prior session recommended reducing from 0.35 to 0.26; unapplied,
-  and event 2 now demonstrates spread-weight inflation even at
-  near-zero complexity (0.0105)."
-  The analyst was longitudinally aware AND could see that its own
-  prior recommendations weren't applied — which it correctly
-  diagnosed as a deployment/pipeline issue rather than bad advice.
-
 ==========================================================================
-PHASE 3 SELF REVIEW
-==========================================================================
-
-WHAT PHASE 2 LEFT INCOMPLETE OR APPROXIMATED:
-
-1. Router is still batch, not streaming (router.ts). Per-token
-   confidence routing requires streaming. Acceptable — Phase 4+ scope.
-
-2. The speculative buffer is tested but never actually used in the
-   real routing flow. The router generates a complete response from
-   each tier. Unit tests still pass.
-
-3. Attention archaeology signal uses trigram/skip-bigram heuristics.
-   Ollama does not expose attention head activations. Documented.
-
-4. Cold concept warming was untested in Phase 2. NOW MEASURED in
-   Phase 3: 17.6% improvement on test concept.
-
-5. The sleep analyst had never been run. Still cannot run end-to-end
-   due to API key blocker, but all supporting infrastructure is
-   verified working.
-
-WHAT learned.json CONTAINS: Does not exist yet. No successful sleep
-session has completed. The merge pipeline is proven to work with
-synthetic data.
-
-UNEXPECTED FINDINGS FROM SELF-REVIEW:
-
-1. Phase 2's untested weight merge pipeline actually works correctly.
-   When tested with synthetic learned.json, it correctly applies
-   partial overrides while preserving untouched keys.
-
-2. Cold concept warming has a meaningful effect (17.6%) despite
-   being just "prompt prefix injection" — Ollama's keep_alive plus
-   CPU cache warmth produces real latency reduction.
-
-3. The Phase 2 REPL accuracy improved from 11/13 to 12/13 in Phase 3
-   without any meta-confidence interventions firing. This is likely
-   because meta-confidence adds an extra data-recording layer that
-   happens to re-warm the models during the query lifecycle.
-
-4. The meta-confidence logIntervention was originally designed to
-   only log interventions, but I changed it to log every decision
-   (including confirms) so we can audit the full decision history.
-   This is more useful for debugging and matches the spec's
-   "log every meta-confidence intervention" more loosely but
-   more informatively.
-
-==========================================================================
-PHASE 1 vs PHASE 2 vs PHASE 3 COMPARISON
-==========================================================================
-
-Metric              | Phase 1    | Phase 2       | Phase 3
---------------------|------------|---------------|------------------
-REPL accuracy       | 0/13       | 11/13 (85%)   | 12/13 (92%)
-Meta interventions  | N/A        | N/A           | 0 (cold start)
-Meta decisions log  | No         | No            | 13 entries
-Signal source       | Heuristic  | Logprobs      | Logprobs
-Sleep analyst       | Untested   | Untested      | Blocked (API key)
-Weight merge verif  | No         | No            | PASS (synthetic)
-Warmup effect       | Unmeasured | Unmeasured    | -17.6% latency
-Tools added         | None       | None          | 5 tools
-
-==========================================================================
-PHASE 4 START POINT
-==========================================================================
-
-- Get a valid ANTHROPIC_API_KEY and run full sleep analyst end-to-end
-- Meta-confidence upgrade to real ML (scikit-learn or similar lightweight)
-- Streaming per-token routing (finally use the speculative buffer for real)
-- Full benchmark suite expansion — more difficulty categories
-- README update with Phase 3 tools and actual measured results
-- Begin swarm prototype planning
+  npm run build: clean (0 errors)
+  npm test: 12/12 pass
+  No regressions from Phase 3.
