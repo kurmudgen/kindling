@@ -20,8 +20,15 @@ async function main(): Promise<void> {
   let analyst: SleepAnalyst | null = null;
   if (process.env.ANTHROPIC_API_KEY) {
     analyst = new SleepAnalyst();
+    analyst.onNotification((msg) => {
+      // Surface dream task completion to the user
+      console.log(`\n${msg}\n`);
+      process.stdout.write('> ');
+    });
     analyst.startIdleMonitor();
-    log.info('Sleep analyst idle monitor started');
+    if (process.env.KINDLING_DREAM !== 'false') {
+      log.info('Dream task monitor started (auto sleep on idle)');
+    }
   }
 
   log.info('Kindling ready. Enter prompts (Ctrl+C to exit).\n');

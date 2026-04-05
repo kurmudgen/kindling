@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, appendFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
@@ -70,12 +70,24 @@ CRITICAL:
 
 You may also receive outputs from previous sleep analysis sessions. Build on what was learned before. Do not repeat recommendations already made. If previous recommendations appear to have improved routing accuracy, note that. If they appear not to have helped, suggest alternatives.`;
 
+export interface DreamTaskEvent {
+  timestamp: string;
+  event: 'start' | 'complete' | 'failed' | 'skipped';
+  durationMs?: number;
+  reason?: string;
+  adjustmentsApplied?: number;
+}
+
 export class SleepAnalyst {
   private client: Anthropic;
   private model: string;
   private lastQueryTime = Date.now();
   private idleThresholdMs: number;
+  private autoSleepMinQueries: number;
   private idleCheckInterval: ReturnType<typeof setInterval> | null = null;
+  private queriesSinceLastSleep = 0;
+  private dreamRunning = false;
+  private notificationCallback: ((msg: string) => void) | null = null;
 
   constructor() {
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -85,29 +97,111 @@ export class SleepAnalyst {
     const config = getConfig();
     this.model = config.sleep.apiModel;
     this.idleThresholdMs = config.sleep.idleThresholdMinutes * 60 * 1000;
+    this.autoSleepMinQueries = config.sleep.autoSleepMinQueries ?? 10;
+  }
+
+  /** Register a callback for dream task notifications (e.g., REPL display) */
+  onNotification(cb: (msg: string) => void): void {
+    this.notificationCallback = cb;
   }
 
   /** Call this on every query to track activity */
   recordActivity(): void {
     this.lastQueryTime = Date.now();
+    this.queriesSinceLastSleep += 1;
   }
 
-  /** Start monitoring for idle periods */
-  startIdleMonitor(): void {
+  /**
+   * Start the dream task monitor.
+   * Checks periodically for idle periods and runs analysis in the background.
+   * Disabled by KINDLING_DREAM=false.
+   */
+  startIdleMonitor(checkIntervalMs: number = 60_000): void {
     if (this.idleCheckInterval) return;
-    this.idleCheckInterval = setInterval(async () => {
-      const idleMs = Date.now() - this.lastQueryTime;
-      if (idleMs >= this.idleThresholdMs) {
-        log.info('Idle threshold reached, running sleep analysis...');
-        try {
-          await this.analyze();
-        } catch (err) {
-          log.error({ err }, 'Sleep analysis failed');
-        }
-        // Reset timer so we don't re-run immediately
-        this.lastQueryTime = Date.now();
+    if (process.env.KINDLING_DREAM === 'false') {
+      log.info('Dream tasks disabled (KINDLING_DREAM=false)');
+      return;
+    }
+
+    this.idleCheckInterval = setInterval(() => {
+      this.checkAndRunDream();
+    }, checkIntervalMs);
+  }
+
+  /**
+   * Check if conditions are met to run a dream task and launch one
+   * in the background if so. Non-blocking — does not await.
+   */
+  private checkAndRunDream(): void {
+    if (this.dreamRunning) return;
+
+    const idleMs = Date.now() - this.lastQueryTime;
+    if (idleMs < this.idleThresholdMs) return;
+    if (this.queriesSinceLastSleep < this.autoSleepMinQueries) {
+      return; // not enough data to learn from
+    }
+
+    // Launch in background — do not await
+    this.runDreamTask().catch(err => {
+      log.error({ err }, 'Dream task error (unhandled)');
+    });
+  }
+
+  private async runDreamTask(): Promise<void> {
+    this.dreamRunning = true;
+    const startMs = Date.now();
+    this.logDreamEvent({
+      timestamp: new Date().toISOString(),
+      event: 'start',
+      reason: `idle ${Math.round((startMs - this.lastQueryTime) / 1000)}s, ${this.queriesSinceLastSleep} queries since last sleep`,
+    });
+
+    try {
+      const result = await this.analyze();
+      const durationMs = Date.now() - startMs;
+      const adjustmentsApplied = result?.routing_adjustments?.length ?? 0;
+
+      this.logDreamEvent({
+        timestamp: new Date().toISOString(),
+        event: 'complete',
+        durationMs,
+        adjustmentsApplied,
+      });
+
+      if (this.notificationCallback && result) {
+        this.notificationCallback(
+          `💤 Sleep analysis complete — ${adjustmentsApplied} routing adjustment${adjustmentsApplied === 1 ? '' : 's'} applied`
+        );
       }
-    }, 60_000); // check every minute
+
+      this.queriesSinceLastSleep = 0;
+    } catch (err) {
+      this.logDreamEvent({
+        timestamp: new Date().toISOString(),
+        event: 'failed',
+        durationMs: Date.now() - startMs,
+        reason: (err as Error).message ?? 'unknown',
+      });
+      log.error({ err }, 'Dream task failed');
+    } finally {
+      this.dreamRunning = false;
+      this.lastQueryTime = Date.now(); // reset idle timer
+    }
+  }
+
+  private logDreamEvent(event: DreamTaskEvent): void {
+    try {
+      if (!existsSync(LOGS_DIR)) mkdirSync(LOGS_DIR, { recursive: true });
+      const dreamLog = resolve(LOGS_DIR, 'dream.jsonl');
+      appendFileSync(dreamLog, JSON.stringify(event) + '\n', 'utf-8');
+    } catch (err) {
+      log.warn({ err }, 'Failed to log dream event');
+    }
+  }
+
+  /** Check if a dream task is currently running (for index.ts UI) */
+  isDreamRunning(): boolean {
+    return this.dreamRunning;
   }
 
   stopIdleMonitor(): void {
