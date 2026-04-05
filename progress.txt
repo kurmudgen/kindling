@@ -1,73 +1,74 @@
-KINDLING BUILD — Phase 2 Complete
-Last updated: 2026-04-05T05:30:00Z
+KINDLING BUILD — Phase 3 In Progress
+Last updated: 2026-04-04T23:30:00Z
 Repo: https://github.com/kurmudgen/kindling
 
-PHASE 2 STATUS: COMPLETE
-
 ==========================================================================
-PHASE 2 SUMMARY
+PHASE 3 SELF REVIEW
 ==========================================================================
 
-WHAT WAS BUILT:
-  1. Real logprob-based escalation signals (src/tiers/signals.ts)
-     - tokenProbabilitySpread from entropy of top-k logprob distributions
-     - semanticVelocity from sliding-window logprob variance
-     - surpriseScore from low-probability token rate
-     - attentionAnomaly from skip-bigram + trigram repetition
-  2. Shared signal computation (src/tiers/signals.ts) — extracted from 3 tiers
-  3. Valence-based pre-escalation gate (src/router/router.ts)
-     - composite > 0.50 with stakes → Tier 3
-     - composite > 0.35 → Tier 2
-     - Prevents wasted Tier 1 generation on obviously complex queries
-  4. Updated valence scorer (src/router/valence.ts)
-     - High-complexity markers, clause counting, multi-part detection
-     - Better separation: simple 0.00-0.02, medium 0.10-0.28, hard 0.42-0.55
-  5. Tier 3 Local (src/tiers/tier3-local.ts)
-     - NVMe-streamed via Ollama mmap, default qwen2.5:32b
-     - GPU staging: transparent via Ollama, graceful degradation
-     - Configurable keep_alive for layer caching
-  6. Tier 3 Router (src/tiers/tier3.ts)
-     - Prefers local model, falls back to Anthropic API
-  7. Cold concept prewarmer (src/sleep/prewarmer.ts)
-     - Runs after sleep analysis, probes concepts to warm model state
-  8. Benchmark tier tracking (bench.ts, repl-test.ts)
-     - Results now show actual tier, escalation path, confidence
-  9. Bug fixes:
-     - Sleep analyst JSON parsing (balanced brace matching vs greedy regex)
-     - Async escalation logging (non-blocking in hot path)
-     - REPL shows tier label in output
-     - Recalibrated escalation thresholds for real logprob signals
+WHAT PHASE 2 LEFT INCOMPLETE OR APPROXIMATED:
 
-BENCHMARK COMPARISON — PHASE 1 vs PHASE 2:
-  Escalation rate:   0% → ~50% medium, ~100% hard
-  Tier distribution: 100% T1 → 40% T1, 45% T2, 15% T3
-  Confidence range:  0.58-0.83 (uniform) → 0.66-0.99 (diagnostic)
-  REPL accuracy:     0/13 routing correct → 11/13 (85%)
+1. Router is still batch, not streaming (router.ts:98-103). The full Tier 1
+   response is generated, THEN signals are checked once. The spec calls for
+   per-token confidence routing via streaming. Phase 2 noted this but did
+   not fix it. Acceptable — streaming is Phase 3+ scope.
 
-WHAT THE SELF-REVIEW FOUND THAT WAS UNEXPECTED:
-  1. The semantic velocity signal was INVERTED in Phase 1 — high vocabulary
-     diversity (the proxy used) indicated the model was doing WELL, not struggling.
-     With real logprobs, this is replaced by logprob variance which correctly
-     measures uncertainty fluctuation.
-  2. The surpriseScore was always ~0 because it compared token count to
-     eval_count, which are the same value. Completely non-functional.
-  3. The router was not speculative at all — it generated the full response,
-     then checked signals post-hoc with identical signals for every buffer window.
-  4. The confidence threshold math was backwards — the Phase 1 threshold of 0.65
-     meant escalation only fired when confidence < 0.35, which with the uniform
-     0.58-0.83 signals was impossible.
+2. The speculative buffer (speculative.ts) is tested but never actually used
+   in the real routing flow. The router generates a complete response from
+   each tier. The buffer's fill/confirm/reject lifecycle is only exercised
+   in unit tests. The router overrides or replaces tokens wholesale.
 
-ESCALATION ACCURACY ON 13-QUERY SET:
-  Simple (4/4):  All correctly stayed at Tier 1
-  Medium (2/4):  2 correctly escalated, 2 borderline stayed at Tier 1
-  Hard (2/2):    Both correctly routed to Tier 2+ via valence gate
-  Edge (3/3):    Urgency escalated, casual/minimal stayed Tier 1
+3. Attention archaeology signal (signals.ts:148-170) uses skip-bigram and
+   trigram repetition heuristics. The spec called for actual attention head
+   activation tracking, which Ollama does not expose via API. The heuristic
+   is a reasonable approximation — it catches degenerate outputs but cannot
+   detect subtle attention anomalies. Documented limitation.
 
-PHASE 3 START POINT:
-  - Streaming per-token routing (currently still batch generation)
-  - Sleep analyst needs real session data (requires valid API key)
-  - Attention archaeology: Ollama doesn't expose attention heads via API,
-    current implementation uses trigram/repetition heuristic
-  - GPU staging buffer performance testing
-  - Meta-confidence model (learn from escalation patterns)
-  - Begin with: streaming generation in tier1.ts using Ollama stream API
+4. Cold concept warming (prewarmer.ts) does prompt prefix injection — runs
+   a short "Briefly define: X" through Tier 1. It does NOT inject into KV
+   cache (Ollama limitation). The warming effect is limited to keeping the
+   model hot in RAM/CPU cache. Not measured whether it actually helps.
+
+5. The sleep analyst (analyst.ts) has NEVER BEEN RUN. No learned.json exists.
+   No sleep logs exist. The entire learning system is untested in production.
+   It requires ANTHROPIC_API_KEY which was invalid during Phase 1/2 testing.
+
+WHAT THE LEARNING SYSTEMS CURRENTLY DO vs SPEC:
+
+- Sleep analyst: Designed to analyze escalation logs and suggest weight
+  adjustments. Code exists but is untested. The API call, JSON parsing,
+  learned.json writing, and prewarmer invocation are all implemented but
+  never exercised with real data.
+
+- Learned weights: config.ts:82-88 loads learned.json and deep-merges it
+  over the profile config. The merge logic works — tested by code review.
+  But learned.json has never been created, so the merge has never fired.
+
+- Weight application: signals.ts:183-191 reads getConfig().escalation for
+  weights. Since learned.json merges into the escalation section, any
+  learned adjustments WOULD affect computeConfidence. The pipeline is
+  correctly wired but untested end-to-end.
+
+WHAT learned.json CONTAINS: Does not exist. No sleep session has ever run.
+
+WHAT TO FIX BEFORE BUILDING NEW FEATURES:
+
+1. Nothing blocking. Build compiles, tests pass, Phase 2 routing works.
+   The learning systems just need to be exercised and verified.
+
+WHAT PHASE 3 SHOULD PRIORITIZE:
+
+1. Signal quality audit — verify Phase 2 signals actually differentiate
+2. Get the sleep analyst running with real data
+3. Verify the weight application pipeline end-to-end
+4. Build meta-confidence as the centerpiece
+5. Longitudinal sleep memory
+6. Cold warming measurement
+
+==========================================================================
+MILESTONE 1 — CODEBASE HEALTH
+==========================================================================
+Status: PASS
+  npm run build: clean (0 errors)
+  npm test: 12/12 pass
+  No regressions from Phase 2.
