@@ -30,7 +30,40 @@ export interface RoutingAdjustment {
   reason: string;
 }
 
-const SYSTEM_PROMPT = `You are analyzing the inference behavior of Kindling, an adaptive tiered LLM runtime. You will receive a session escalation log showing when and why the system escalated queries from cheaper to more expensive compute tiers. Your job is to identify patterns, suggest routing weight adjustments to improve future escalation decisions, and identify concept clusters worth pre-warming. Respond only in the JSON format specified. Be specific and actionable.
+const SYSTEM_PROMPT = `You are analyzing the inference behavior of Kindling, an adaptive tiered LLM runtime. You will receive a session escalation log showing when and why the system escalated queries from cheaper to more expensive compute tiers. Your job is to identify patterns, suggest routing weight adjustments to improve future escalation decisions, and identify concept clusters worth pre-warming.
+
+You MUST respond with a single JSON object using EXACTLY these field names (no variations):
+
+{
+  "patterns_identified": [
+    "string observation 1",
+    "string observation 2"
+  ],
+  "concepts_to_prewarm": [
+    "specific concept string 1",
+    "specific concept string 2"
+  ],
+  "routing_adjustments": [
+    {
+      "signal": "tokenProbabilitySpread" | "semanticVelocity" | "surpriseScore" | "attentionAnomaly" | "escalationThreshold" | "deescalationThreshold",
+      "currentWeight": number,
+      "suggestedWeight": number,
+      "reason": "string explanation"
+    }
+  ],
+  "confidence_model_notes": [
+    "string insight 1"
+  ],
+  "session_summary": "one paragraph describing what happened in this session"
+}
+
+CRITICAL:
+- concepts_to_prewarm must be an array of simple strings (like "JWT authentication", "distributed consensus"), not objects.
+- routing_adjustments uses "signal" as the key (not "parameter") and must match one of the signal names above.
+- Do not add extra top-level fields. Do not rename fields. Do not nest.
+- Be specific and actionable. Reference actual queries and signal values from the log.
+- Keep each field concise: max 6 items per array, max 2 sentences per "reason" field.
+- The entire JSON response must fit in under 4000 tokens.
 
 You may also receive outputs from previous sleep analysis sessions. Build on what was learned before. Do not repeat recommendations already made. If previous recommendations appear to have improved routing accuracy, note that. If they appear not to have helped, suggest alternatives.`;
 
@@ -127,7 +160,7 @@ export class SleepAnalyst {
 
     const response = await this.client.messages.create({
       model: this.model,
-      max_tokens: 2048,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -212,8 +245,8 @@ export class SleepAnalyst {
     );
   }
 
-  private applyAdjustments(adjustments: RoutingAdjustment[]): void {
-    if (adjustments.length === 0) return;
+  private applyAdjustments(adjustments: RoutingAdjustment[] | undefined | null): void {
+    if (!adjustments || adjustments.length === 0) return;
 
     const learnedPath = resolve(CONFIG_DIR, 'learned.json');
     let learned: Record<string, unknown> = {};

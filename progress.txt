@@ -19,26 +19,41 @@ MILESTONE 2 — SIGNAL QUALITY AUDIT: PASS
   Hard queries correctly trigger escalation signal.
   Tool: src/tools/signal-audit.ts
 
-MILESTONE 3 — SLEEP ANALYST QUALITY: PARTIAL PASS (API KEY BLOCKER)
-  BLOCKER: The system ANTHROPIC_API_KEY returns HTTP 401
-  (invalid_x_api_key). This is an external credential issue that
-  cannot be fixed from inside the session.
+MILESTONE 3 — SLEEP ANALYST QUALITY: PASS (valid API key provided)
+  User provided a valid ANTHROPIC_API_KEY and the sleep analyst ran
+  end-to-end successfully. Two sequential sessions produced specific,
+  actionable, and longitudinally-aware output.
 
-  WHAT WAS VERIFIED:
-  - 10 seeded queries ran successfully (3 escalated to Tier 2)
-  - Escalation events logged to logs/escalation.jsonl (29 total)
-  - Sleep analyst infrastructure is code-complete and compiles
-  - JSON parsing, learned.json writing, prewarmer invocation all
-    implemented and reviewed
-  - The API call itself fails with 401 before any analysis runs
+  BUGS FOUND AND FIXED DURING TESTING:
+  1. Analyst field schema was ambiguous — Claude initially returned
+     "patternsSummary" / "routingWeightAdjustments" / "preWarmingRecommendations"
+     instead of the expected snake_case names. FIX: Updated system prompt
+     to include an explicit JSON schema with exact field names and
+     "CRITICAL" constraints.
+  2. applyAdjustments() crashed when routing_adjustments was undefined.
+     FIX: Added null/undefined guard.
+  3. max_tokens=2048 was too small for the detailed analyst output —
+     responses got truncated mid-JSON and failed to parse.
+     FIX: Raised to 8192 and added length constraints to the prompt.
 
-  WHAT IS UNVERIFIED (due to blocker):
-  - Whether analyst produces specific vs generic output
-  - Whether concepts_to_prewarm contains real concepts
-  - Whether routing_adjustments produces meaningful deltas
+  GATE CRITERIA (all met):
+  - concepts_to_prewarm: 4 specific concepts from actual queries. PASS.
+    Example: "near-zero complexity low-stakes query resolution"
+  - routing_adjustments: 5 specific adjustments with signal names,
+    current/suggested weights, and detailed rationale. PASS.
+    Example: tokenProbabilitySpread 0.35 → 0.24 with 2-sentence reason.
+  - session_summary: Paragraph describing specific events, composite
+    scores, sessionIds, and cross-session patterns. PASS.
+  - confidence_model_notes: 3 specific observations including the
+    identification of a 0.677–0.715 calibration band across 8 escalations
+    spanning two sessions. PASS.
 
-  NEXT STEP: Requires a valid ANTHROPIC_API_KEY to re-run.
-  Tool: src/tools/sleep-test.ts (generates events + triggers analysis)
+  LONGITUDINAL MEMORY VERIFIED:
+  Every routing_adjustment in session 2 explicitly references the prior
+  session's recommendation and notes whether it was applied:
+  "Prior session recommended reducing from 0.35 to 0.26; unapplied..."
+  This is exactly what Milestone 7 required — the analyst noticed its
+  own recommendations weren't applied last time and adjusted accordingly.
 
 MILESTONE 4 — SOFT WEIGHT UPDATES: PASS
   Weight merge pipeline verified end-to-end:
@@ -78,13 +93,20 @@ MILESTONE 6 — META-CONFIDENCE MODEL: PASS
   interventions (none fired yet due to cold start). It is likely from
   the Phase 3 router restructure and earlier decision timing.
 
-MILESTONE 7 — LONGITUDINAL SLEEP MEMORY: PASS (code complete)
+MILESTONE 7 — LONGITUDINAL SLEEP MEMORY: PASS (verified end-to-end)
   analyst.ts updated to:
   - Load 3 most recent sleep session outputs via loadPriorSessions()
   - Include them in the API call as prior context
   - System prompt instructs the analyst to build on previous findings
-  Cannot test end-to-end chaining without a valid API key — same
-  blocker as Milestone 3.
+  VERIFIED: Second session explicitly referenced the first session's
+  recommendations in every routing_adjustment, noting whether they
+  had been applied. Example quote from session 2 output:
+  "Prior session recommended reducing from 0.35 to 0.26; unapplied,
+  and event 2 now demonstrates spread-weight inflation even at
+  near-zero complexity (0.0105)."
+  The analyst was longitudinally aware AND could see that its own
+  prior recommendations weren't applied — which it correctly
+  diagnosed as a deployment/pipeline issue rather than bad advice.
 
 ==========================================================================
 PHASE 3 SELF REVIEW
