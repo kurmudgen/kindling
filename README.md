@@ -1,71 +1,89 @@
 # Kindling
 
-Kindling is an adaptive tiered inference runtime for LLMs that runs CPU-primary without hard VRAM dependency. It routes queries across three compute tiers — small local models for fast simple work, medium models for moderate complexity, and deep API models for the hardest problems — using real-time confidence signals and speculative token buffering.
+**Adaptive tiered inference runtime. Low burn, always present. Flares when needed.**
 
-The system learns from its own escalation patterns during idle periods (the "sleep stage"), adjusting routing weights over time so cheaper tiers handle more work without quality loss. Bring your own API key for the deep tier; everything else runs on your local hardware via Ollama.
+![build](https://img.shields.io/badge/build-passing-brightgreen)
+![license](https://img.shields.io/badge/license-MIT-blue)
+![version](https://img.shields.io/badge/version-0.1.0-orange)
 
-## Architecture
+## What It Is
 
-| Tier | Default Model | Backend | Purpose |
-|------|--------------|---------|---------|
-| 1 — Shallow | qwen2.5:1.5b | Ollama local | Fast, always-warm. Handles simple queries. |
-| 2 — Medium | gemma2:27b | Ollama local + API fallback | Moderate complexity. Falls back to Claude Haiku if local model unavailable. |
-| 3 — Deep | claude-sonnet-4-6 | Anthropic API | Complex/high-stakes queries. Phase 2 will add local streaming. |
+Most local LLM setups assume you have a GPU with enough VRAM to hold an entire model, or you eat the latency of running everything on CPU. Kindling rejects that tradeoff. It runs a small, fast model on CPU as the always-hot default, then escalates to heavier compute only when confidence signals say the small model can't handle the query. No VRAM required. No GPU required. Just CPU, RAM, and a willingness to let the cheap tier do most of the work.
 
-A **confidence router** monitors escalation signals (token probability spread, semantic velocity, surprise score, attention anomalies) and a **speculative buffer** allows Tier 1 to generate ahead while Tier 2 verifies, minimizing latency on handoffs.
+Kindling monitors four real-time escalation signals during generation — token probability spread, semantic velocity, surprise score, and attention anomaly patterns. When signals cross configurable thresholds, the query escalates to the next tier. When signals stabilize, it drops back down. During idle periods, a "sleep stage" analyst reviews the session's escalation logs and adjusts routing weights so the system gets smarter about when to escalate over time.
 
-## Quick Start
+## How It Works
 
-### Prerequisites
-- Node.js 20+
-- [Ollama](https://ollama.ai) installed and running
-- Pull at least the Tier 1 model: `ollama pull qwen2.5:1.5b`
-
-### Setup
-```bash
-cd kindling
-npm install
-cp .env.example .env
-# Edit .env — add your ANTHROPIC_API_KEY for Tier 2 fallback and Tier 3
+```
+Query → Valence Scorer → Tier 1 (always hot)
+                              ↓ confidence low
+                         Tier 2 (warm standby)
+                              ↓ confidence low
+                         Tier 3 (API / streamed)
+                              ↑
+                    Sleep Analyst (idle)
+                    learns from escalation logs
+                    adjusts weights for next session
 ```
 
-### Run
-```bash
-npm run start
-```
+**Tier 1 (Shallow)** — Small Ollama model (default: qwen2.5:1.5b). Always loaded, always fast. Handles the majority of queries. Writes tokens into a speculative buffer while Tier 2 verifies in parallel.
 
-Type prompts into the REPL. Commands:
-- `/sleep` — trigger manual sleep analysis
-- `/clear` — clear conversation context
-- `Ctrl+C` — exit
+**Tier 2 (Medium)** — Larger Ollama model (default: gemma2:27b) with API fallback to Claude Haiku. Activates when Tier 1 confidence drops. Takes over from the buffer position, not from scratch.
 
-### Benchmark
-```bash
-npm run bench
-```
+**Tier 3 (Deep)** — Anthropic API (Claude Sonnet). Reserved for high-complexity, high-stakes queries. Phase 2 will replace this with local NVMe-streamed inference.
 
-Results saved to `logs/benchmark/`.
+**Confidence Router** — Aggregates weighted escalation signals per token, makes escalate/de-escalate decisions against configurable thresholds.
+
+**Speculative Buffer** — Tier 1 generates ahead into a fixed-size buffer. On confirmation, tokens flush to output. On rejection, Tier 2 resumes from the buffer boundary — no wasted work.
+
+**Sleep Analyst** — Runs during idle. Bundles escalation logs, sends them to the API for pattern analysis, and persists routing weight adjustments to `config/learned.json`.
 
 ## Hardware Profiles
 
 Set via `KINDLING_PROFILE` env var:
 
-| Profile | Target Hardware | Tier 1 Model | Buffer Size | Escalation Sensitivity |
-|---------|----------------|-------------|-------------|----------------------|
-| `default` | General | qwen2.5:1.5b | 4 | Moderate |
-| `ddr4-budget` | DDR4, limited RAM | qwen2.5:0.5b | 2 | Aggressive (escalates earlier) |
-| `prosumer` | DDR5, no GPU | qwen2.5:3b | 6 | Conservative (tries harder locally) |
+| Profile | Target Hardware | Tier 1 | Tier 2 | Buffer | Escalation |
+|---------|----------------|--------|--------|--------|------------|
+| `default` | General | qwen2.5:1.5b | gemma2:27b | 4 tokens | Moderate |
+| `ddr4-budget` | DDR4, limited RAM | qwen2.5:0.5b | qwen2.5:7b | 2 tokens | Aggressive (escalates earlier) |
+| `prosumer` | DDR5, no GPU | qwen2.5:3b | gemma2:27b | 6 tokens | Conservative (tries harder locally) |
 
-## BYOK (Bring Your Own Key)
+## Quick Start
 
-Tier 2 API fallback and Tier 3 use the Anthropic API. Set `ANTHROPIC_API_KEY` in your `.env` file. Without it, Tier 2 is Ollama-only and Tier 3 is unavailable.
+```bash
+git clone https://github.com/kurmudgen/kindling
+cd kindling
+npm install
+ollama pull qwen2.5:1.5b
+cp .env.example .env
+# Add ANTHROPIC_API_KEY to .env for Tier 2 fallback and Tier 3
+npm run start
+```
 
-Cost tracking is built into Tier 3 responses — check `metadata.costEstimateUSD` in the response.
+## Commands
 
-## Current Status
+| Command | Description |
+|---------|-------------|
+| `npm run start` | Interactive REPL |
+| `npm run bench` | 55-query benchmark suite |
+| `npm test` | Run unit tests |
+| `/sleep` | Trigger sleep stage analysis manually |
+| `/clear` | Clear conversation context |
 
-**Phase 1** — Core runtime complete. Tier 3 uses API as a stand-in for local streaming (coming in Phase 2). Sleep stage analysis operational. Speculative buffer implemented with escalation/de-escalation handoffs.
+## Bring Your Own Key
+
+Kindling uses BYOK for all API calls — you supply your own Anthropic API key, and Kindling never touches billing. Set `ANTHROPIC_API_KEY` in `.env`. Tier 2 falls back to Claude Haiku when the local model isn't available. Tier 3 uses Claude Sonnet for deep queries. Tier 1 is always local via Ollama and never hits an API. Without an API key, the system still works — Tier 1 and local Tier 2 handle everything, and Tier 3 is simply unavailable.
+
+## Phase Roadmap
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | **Complete** | Core runtime, API stand-in for Tier 3, sleep stage learning |
+| Phase 2 | Planned | Local Tier 3 layer streaming from NVMe, GPU staging buffer |
+| Phase 3 | Planned | Sleep state soft weight updates, cold concept warming |
+| Phase 4 | Planned | Meta-confidence model, full benchmark suite |
+| Phase 5 | Planned | Open swarm prototype |
 
 ## License
 
-MIT
+MIT — Formation Labs LLC
