@@ -1,0 +1,478 @@
+{
+  "timestamp": "2026-04-05T02:43:12.920Z",
+  "totalQueries": 55,
+  "successful": 55,
+  "failed": 0,
+  "byCategory": {
+    "simple": {
+      "count": 20,
+      "avgLatencyMs": 1646,
+      "avgTokens": 37,
+      "avgCoherence": 0.851,
+      "successRate": 1
+    },
+    "medium": {
+      "count": 20,
+      "avgLatencyMs": 2139,
+      "avgTokens": 404,
+      "avgCoherence": 0.887,
+      "successRate": 1
+    },
+    "hard": {
+      "count": 10,
+      "avgLatencyMs": 2500,
+      "avgTokens": 478,
+      "avgCoherence": 0.9,
+      "successRate": 1
+    },
+    "mixed": {
+      "count": 5,
+      "avgLatencyMs": 2757,
+      "avgTokens": 507,
+      "avgCoherence": 0.878,
+      "successRate": 1
+    }
+  },
+  "results": [
+    {
+      "query": "What is 2 + 2?",
+      "category": "simple",
+      "latencyMs": 4473,
+      "responseLength": 5,
+      "coherenceScore": 0.75,
+      "success": true
+    },
+    {
+      "query": "Name a color.",
+      "category": "simple",
+      "latencyMs": 16153,
+      "responseLength": 7,
+      "coherenceScore": 0.77,
+      "success": true
+    },
+    {
+      "query": "What day comes after Monday?",
+      "category": "simple",
+      "latencyMs": 236,
+      "responseLength": 1,
+      "coherenceScore": 0.41000000000000003,
+      "success": true
+    },
+    {
+      "query": "Say hello.",
+      "category": "simple",
+      "latencyMs": 5116,
+      "responseLength": 7,
+      "coherenceScore": 0.77,
+      "success": true
+    },
+    {
+      "query": "What is the capital of France?",
+      "category": "simple",
+      "latencyMs": 460,
+      "responseLength": 52,
+      "coherenceScore": 0.9846153846153847,
+      "success": true
+    },
+    {
+      "query": "Is water wet?",
+      "category": "simple",
+      "latencyMs": 402,
+      "responseLength": 45,
+      "coherenceScore": 1,
+      "success": true
+    },
+    {
+      "query": "Name a fruit.",
+      "category": "simple",
+      "latencyMs": 251,
+      "responseLength": 1,
+      "coherenceScore": 0.71,
+      "success": true
+    },
+    {
+      "query": "What is 10 times 5?",
+      "category": "simple",
+      "latencyMs": 392,
+      "responseLength": 28,
+      "coherenceScore": 0.98,
+      "success": true
+    },
+    {
+      "query": "Spell the word cat.",
+      "category": "simple",
+      "latencyMs": 254,
+      "responseLength": 4,
+      "coherenceScore": 0.74,
+      "success": true
+    },
+    {
+      "query": "What color is the sky?",
+      "category": "simple",
+      "latencyMs": 1244,
+      "responseLength": 241,
+      "coherenceScore": 0.9029045643153526,
+      "success": true
+    },
+    {
+      "query": "Name an animal.",
+      "category": "simple",
+      "latencyMs": 439,
+      "responseLength": 52,
+      "coherenceScore": 1,
+      "success": true
+    },
+    {
+      "query": "What is the opposite of hot?",
+      "category": "simple",
+      "latencyMs": 442,
+      "responseLength": 42,
+      "coherenceScore": 1,
+      "success": true
+    },
+    {
+      "query": "Count to 5.",
+      "category": "simple",
+      "latencyMs": 289,
+      "responseLength": 5,
+      "coherenceScore": 0.75,
+      "success": true
+    },
+    {
+      "query": "What is a dog?",
+      "category": "simple",
+      "latencyMs": 737,
+      "responseLength": 115,
+      "coherenceScore": 0.9869565217391305,
+      "success": true
+    },
+    {
+      "query": "Name a month.",
+      "category": "simple",
+      "latencyMs": 245,
+      "responseLength": 1,
+      "coherenceScore": 0.71,
+      "success": true
+    },
+    {
+      "query": "What shape has 4 sides?",
+      "category": "simple",
+      "latencyMs": 422,
+      "responseLength": 40,
+      "coherenceScore": 1,
+      "success": true
+    },
+    {
+      "query": "Is fire hot or cold?",
+      "category": "simple",
+      "latencyMs": 439,
+      "responseLength": 58,
+      "coherenceScore": 1,
+      "success": true
+    },
+    {
+      "query": "Name a planet.",
+      "category": "simple",
+      "latencyMs": 364,
+      "responseLength": 27,
+      "coherenceScore": 0.97,
+      "success": true
+    },
+    {
+      "query": "What comes after 7?",
+      "category": "simple",
+      "latencyMs": 284,
+      "responseLength": 10,
+      "coherenceScore": 0.7999999999999999,
+      "success": true
+    },
+    {
+      "query": "What is the first letter of the alphabet?",
+      "category": "simple",
+      "latencyMs": 276,
+      "responseLength": 8,
+      "coherenceScore": 0.7799999999999999,
+      "success": true
+    },
+    {
+      "query": "Explain the difference between TCP and UDP.",
+      "category": "medium",
+      "latencyMs": 872,
+      "responseLength": 160,
+      "coherenceScore": 0.940625,
+      "success": true
+    },
+    {
+      "query": "Compare Python and JavaScript for web development.",
+      "category": "medium",
+      "latencyMs": 2180,
+      "responseLength": 414,
+      "coherenceScore": 0.885024154589372,
+      "success": true
+    },
+    {
+      "query": "Analyze the pros and cons of microservices architecture.",
+      "category": "medium",
+      "latencyMs": 1171,
+      "responseLength": 217,
+      "coherenceScore": 0.9410138248847926,
+      "success": true
+    },
+    {
+      "query": "Design a simple caching strategy for a REST API.",
+      "category": "medium",
+      "latencyMs": 2961,
+      "responseLength": 453,
+      "coherenceScore": 0.8560706401766005,
+      "success": true
+    },
+    {
+      "query": "Explain how garbage collection works in modern languages.",
+      "category": "medium",
+      "latencyMs": 2311,
+      "responseLength": 475,
+      "coherenceScore": 0.8831578947368421,
+      "success": true
+    },
+    {
+      "query": "Compare SQL and NoSQL databases for a social media app.",
+      "category": "medium",
+      "latencyMs": 2743,
+      "responseLength": 520,
+      "coherenceScore": 0.8673076923076923,
+      "success": true
+    },
+    {
+      "query": "Explain the CAP theorem in distributed systems.",
+      "category": "medium",
+      "latencyMs": 2084,
+      "responseLength": 427,
+      "coherenceScore": 0.8786885245901639,
+      "success": true
+    },
+    {
+      "query": "Analyze the tradeoffs between REST and GraphQL.",
+      "category": "medium",
+      "latencyMs": 1363,
+      "responseLength": 259,
+      "coherenceScore": 0.9281853281853283,
+      "success": true
+    },
+    {
+      "query": "Design a rate limiting algorithm for an API gateway.",
+      "category": "medium",
+      "latencyMs": 3159,
+      "responseLength": 482,
+      "coherenceScore": 0.866597510373444,
+      "success": true
+    },
+    {
+      "query": "Explain how TLS handshake works step by step.",
+      "category": "medium",
+      "latencyMs": 1925,
+      "responseLength": 389,
+      "coherenceScore": 0.8930591259640104,
+      "success": true
+    },
+    {
+      "query": "Compare container orchestration approaches: Kubernetes vs Nomad.",
+      "category": "medium",
+      "latencyMs": 2434,
+      "responseLength": 455,
+      "coherenceScore": 0.8593406593406594,
+      "success": true
+    },
+    {
+      "query": "Analyze the benefits and risks of event-driven architecture.",
+      "category": "medium",
+      "latencyMs": 2292,
+      "responseLength": 487,
+      "coherenceScore": 0.8987679671457907,
+      "success": true
+    },
+    {
+      "query": "Explain the difference between authentication and authorization.",
+      "category": "medium",
+      "latencyMs": 905,
+      "responseLength": 176,
+      "coherenceScore": 0.9295454545454545,
+      "success": true
+    },
+    {
+      "query": "Design a simple pub/sub message queue.",
+      "category": "medium",
+      "latencyMs": 2541,
+      "responseLength": 397,
+      "coherenceScore": 0.8984886649874055,
+      "success": true
+    },
+    {
+      "query": "Compare monorepo vs polyrepo strategies.",
+      "category": "medium",
+      "latencyMs": 2555,
+      "responseLength": 520,
+      "coherenceScore": 0.8538461538461539,
+      "success": true
+    },
+    {
+      "query": "Explain how DNS resolution works from browser to server.",
+      "category": "medium",
+      "latencyMs": 1763,
+      "responseLength": 363,
+      "coherenceScore": 0.865840220385675,
+      "success": true
+    },
+    {
+      "query": "Analyze the tradeoffs of eventual consistency.",
+      "category": "medium",
+      "latencyMs": 1833,
+      "responseLength": 394,
+      "coherenceScore": 0.900761421319797,
+      "success": true
+    },
+    {
+      "query": "Design an API versioning strategy.",
+      "category": "medium",
+      "latencyMs": 2292,
+      "responseLength": 441,
+      "coherenceScore": 0.9049886621315193,
+      "success": true
+    },
+    {
+      "query": "Explain how WebSockets differ from HTTP long polling.",
+      "category": "medium",
+      "latencyMs": 2485,
+      "responseLength": 500,
+      "coherenceScore": 0.851,
+      "success": true
+    },
+    {
+      "query": "Compare load balancing algorithms for web servers.",
+      "category": "medium",
+      "latencyMs": 2902,
+      "responseLength": 555,
+      "coherenceScore": 0.8423423423423424,
+      "success": true
+    },
+    {
+      "query": "Architect a production-grade real-time collaborative document editor with confli",
+      "category": "hard",
+      "latencyMs": 2946,
+      "responseLength": 503,
+      "coherenceScore": 0.9300198807157058,
+      "success": true
+    },
+    {
+      "query": "Design a comprehensive security audit framework for a financial services applica",
+      "category": "hard",
+      "latencyMs": 2818,
+      "responseLength": 563,
+      "coherenceScore": 0.8992895204262878,
+      "success": true
+    },
+    {
+      "query": "Analyze and compare the theoretical foundations of transformer attention mechani",
+      "category": "hard",
+      "latencyMs": 2063,
+      "responseLength": 378,
+      "coherenceScore": 0.8883597883597885,
+      "success": true
+    },
+    {
+      "query": "Design a distributed consensus protocol for a multi-region database that maintai",
+      "category": "hard",
+      "latencyMs": 2290,
+      "responseLength": 425,
+      "coherenceScore": 0.9152941176470588,
+      "success": true
+    },
+    {
+      "query": "Architect a machine learning pipeline for production fraud detection that handle",
+      "category": "hard",
+      "latencyMs": 2465,
+      "responseLength": 491,
+      "coherenceScore": 0.8963340122199592,
+      "success": true
+    },
+    {
+      "query": "Design a comprehensive disaster recovery strategy for a critical healthcare syst",
+      "category": "hard",
+      "latencyMs": 2690,
+      "responseLength": 544,
+      "coherenceScore": 0.8812500000000001,
+      "success": true
+    },
+    {
+      "query": "Analyze the security implications of implementing a zero-trust architecture in a",
+      "category": "hard",
+      "latencyMs": 2139,
+      "responseLength": 414,
+      "coherenceScore": 0.8995169082125605,
+      "success": true
+    },
+    {
+      "query": "Design a real-time stream processing system that handles backpressure, exactly-o",
+      "category": "hard",
+      "latencyMs": 2724,
+      "responseLength": 536,
+      "coherenceScore": 0.8966417910447761,
+      "success": true
+    },
+    {
+      "query": "Architect a privacy-preserving federated learning system for medical imaging tha",
+      "category": "hard",
+      "latencyMs": 2639,
+      "responseLength": 525,
+      "coherenceScore": 0.8714285714285714,
+      "success": true
+    },
+    {
+      "query": "Design a comprehensive observability platform that correlates metrics, traces, a",
+      "category": "hard",
+      "latencyMs": 2226,
+      "responseLength": 397,
+      "coherenceScore": 0.918639798488665,
+      "success": true
+    },
+    {
+      "query": "What is a load balancer? Then explain how to design one that handles 1M requests",
+      "category": "mixed",
+      "latencyMs": 2810,
+      "responseLength": 556,
+      "coherenceScore": 0.876978417266187,
+      "success": true
+    },
+    {
+      "query": "Define recursion. Now implement a production-grade recursive descent parser with",
+      "category": "mixed",
+      "latencyMs": 3214,
+      "responseLength": 535,
+      "coherenceScore": 0.8682242990654205,
+      "success": true
+    },
+    {
+      "query": "What is encryption? Explain it simply, then design a key management system for a",
+      "category": "mixed",
+      "latencyMs": 1313,
+      "responseLength": 272,
+      "coherenceScore": 0.9492647058823529,
+      "success": true
+    },
+    {
+      "query": "Name three sorting algorithms. Then analyze the mathematical proof of the lower ",
+      "category": "mixed",
+      "latencyMs": 2746,
+      "responseLength": 550,
+      "coherenceScore": 0.8045454545454545,
+      "success": true
+    },
+    {
+      "query": "What is an API? Then architect a comprehensive API gateway with rate limiting, a",
+      "category": "mixed",
+      "latencyMs": 3701,
+      "responseLength": 620,
+      "coherenceScore": 0.892741935483871,
+      "success": true
+    }
+  ]
+}

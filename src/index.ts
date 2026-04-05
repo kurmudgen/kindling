@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ override: true });
 
 import pino from 'pino';
 import { loadConfig } from './config/config.js';

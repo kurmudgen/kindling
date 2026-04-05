@@ -6,12 +6,18 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node --loader ts-node/esm src/index.ts",
-    "bench": "node --loader ts-node/esm src/benchmark/bench.ts",
+    "start": "tsx src/index.ts",
+    "bench": "tsx src/benchmark/bench.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": ["llm", "inference", "tiered", "adaptive", "ollama"],
+  "keywords": [
+    "llm",
+    "inference",
+    "tiered",
+    "adaptive",
+    "ollama"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
@@ -23,6 +29,7 @@
   "devDependencies": {
     "@types/node": "^25.5.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2"
   }

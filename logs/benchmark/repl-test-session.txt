@@ -1,0 +1,105 @@
+KINDLING REPL TEST SESSION
+Run date: 2026-04-05T02:44:46.231Z
+Profile: default
+======================================================================
+
+--- Query 1 (simple) ---
+Prompt: What is the capital of France?
+Tier: Tier 1 (local)
+Latency: 3888ms
+Response tokens: 6
+Preview: The capital of France is Paris.
+
+--- Query 2 (simple) ---
+Prompt: Write a haiku about rain
+Tier: Tier 1 (local)
+Latency: 298ms
+Response tokens: 10
+Preview: Raindrops on leaves, Nature's soothing melody— World so quiet now.
+
+--- Query 3 (simple) ---
+Prompt: What does HTTP stand for?
+Tier: Tier 1 (local)
+Latency: 262ms
+Response tokens: 6
+Preview: HTTP stands for Hypertext Transfer Protocol.
+
+--- Query 4 (simple) ---
+Prompt: Convert 100 fahrenheit to celsius
+Tier: Tier 1 (local)
+Latency: 742ms
+Response tokens: 83
+Preview: To convert from Fahrenheit to Celsius, you can use the following formula: \[ C = \frac{5}{9} (F - 32) \] Where \(C\) is the temperature in Celsius and \(F\) is the temperature in Fahrenheit. Given: \(
+
+--- Query 5 (medium) ---
+Prompt: Explain the difference between TCP and UDP and when you would choose each
+Tier: Tier 1 (local)
+Latency: 1240ms
+Response tokens: 249
+Preview: TCP (Transmission Control Protocol) and UDP (User Datagram Protocol) are two different protocols used for transmitting data over a network, but they serve different purposes. TCP is designed to ensure
+
+--- Query 6 (medium) ---
+Prompt: Write a Python function that implements binary search with error handling
+Tier: Tier 1 (local)
+Latency: 2712ms
+Response tokens: 466
+Preview: Certainly! Below is an implementation of the binary search algorithm in Python, including basic error handling: ```python def binary_search(sorted_list, target): """ Perform a binary search on a sorte
+
+--- Query 7 (medium) ---
+Prompt: Compare the architectural differences between REST and GraphQL APIs
+Tier: Tier 1 (local)
+Latency: 3020ms
+Response tokens: 564
+Preview: The main difference between a RESTful (REST) API and a GraphQL API lies in their design philosophy, data access model, and the ability to handle specific use cases. ### 1. **Data Access Model:** - **R
+
+--- Query 8 (medium) ---
+Prompt: Explain how garbage collection works in JavaScript
+Tier: Tier 1 (local)
+Latency: 2032ms
+Response tokens: 389
+Preview: In JavaScript, garbage collection is a mechanism used by the language runtime environment (like Node.js) to automatically manage memory that an object no longer references and therefore can be dealloc
+
+--- Query 9 (hard) ---
+Prompt: Design a distributed rate limiting system that works across multiple servers without a single point of failure. Include the data structures, algorithms, and tradeoffs.
+Tier: Tier 1 (local)
+Latency: 3965ms
+Response tokens: 681
+Preview: ### Designing a Distributed Rate-Limiting System #### 1. **Introduction** - A distributed rate-limiting system is essential for managing access to resources or services in a way that prevents abuse an
+
+--- Query 10 (hard) ---
+Prompt: Analyze the security implications of JWT tokens stored in localStorage versus httpOnly cookies, including specific attack vectors and mitigations
+Tier: Tier 1 (local)
+Latency: 2481ms
+Response tokens: 441
+Preview: **JWT Tokens Stored in LocalStorage vs Http Only Cookies: Security Implications** **LocalStorage Attack Vectors and Mitigations** - **Local Storage**: - **Authentication Tokens Vulnerability**: Storin
+
+--- Query 11 (edge-urgency) ---
+Prompt: urgent: production is down, what are the first 5 things to check?
+Tier: Tier 1 (local)
+Latency: 3005ms
+Response tokens: 496
+Preview: When a production system goes down, it's important to quickly identify and address the root cause as quickly as possible. Here are the top five checks you should perform on your system: ### Check 1: L
+
+--- Query 12 (edge-casual) ---
+Prompt: hey what's up
+Tier: Tier 1 (local)
+Latency: 619ms
+Response tokens: 7
+Preview: Hello! How can I assist you today?
+
+--- Query 13 (edge-minimal) ---
+Prompt: ok
+Tier: Tier 1 (local)
+Latency: 613ms
+Response tokens: 7
+Preview: Sure! What do you need help with?
+
+======================================================================
+ROUTING SUMMARY
+
+simple: 4 queries, avg 1298ms, avg 26 tokens
+medium: 4 queries, avg 2251ms, avg 417 tokens
+hard: 2 queries, avg 3223ms, avg 561 tokens
+edge-urgency: 1 queries, avg 3005ms, avg 496 tokens
+edge-casual: 1 queries, avg 619ms, avg 7 tokens
+edge-minimal: 1 queries, avg 613ms, avg 7 tokens

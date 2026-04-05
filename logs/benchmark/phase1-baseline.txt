@@ -1,0 +1,49 @@
+KINDLING PHASE 1 BASELINE BENCHMARK
+Run date: 2026-04-05
+Profile: default (qwen2.5:1.5b tier 1, qwen2.5:14b tier 2)
+Tier 3: Disabled (no API key)
+
+=== SUMMARY ===
+Total: 55 | Pass: 55 | Fail: 0
+
+Category  | Count | Avg Latency (ms) | Avg Tokens | Avg Coherence | Success Rate
+----------|-------|-------------------|------------|---------------|-------------
+simple    | 20    | 1,646             | 37         | 0.851         | 100%
+medium    | 20    | 2,139             | 404        | 0.887         | 100%
+hard      | 10    | 2,500             | 478        | 0.900         | 100%
+mixed     | 5     | 2,757             | 507        | 0.878         | 100%
+
+=== TIER ROUTING ===
+All 55 queries handled by Tier 1 (qwen2.5:1.5b)
+Zero escalations to Tier 2 or Tier 3
+
+Confidence scores observed:
+  Simple:  0.58 - 0.80 (avg ~0.68)
+  Medium:  0.74 - 0.83 (avg ~0.79)
+  Hard:    0.74 - 0.80 (avg ~0.78)
+  Mixed:   0.75 - 0.83 (avg ~0.79)
+
+=== OBSERVATIONS ===
+1. No escalations occurred. The escalation signal estimates (derived from
+   generation speed and token patterns rather than direct logprobs) produce
+   confidence values in the 0.58-0.83 range, which stay above the effective
+   escalation trigger point.
+
+2. Medium/hard queries actually show HIGHER confidence than simple queries.
+   This is because longer responses have more diverse vocabulary (semantic
+   velocity signal) and better generation throughput after model warmup.
+
+3. The coherence heuristic (sentence structure + vocabulary diversity + length)
+   correctly scores longer, more structured responses higher (0.90 for hard)
+   vs short one-word answers (0.71-0.75 for simple).
+
+4. First two queries show elevated latency (4.5s and 16s) due to model
+   cold-start in Ollama. Subsequent queries run at normal speed (250ms-3.7s).
+
+=== ISSUES FOR PHASE 2 ===
+- Escalation signals need to be derived from logprobs (Ollama supports this
+  but requires raw API mode). Current speed-based estimation is too coarse.
+- The confidence router never triggers because estimated signals are all
+  moderate — no differentiation between easy and hard queries.
+- Consider adding a pre-generation valence-based escalation path that bypasses
+  the token-by-token confidence check for obviously complex queries.

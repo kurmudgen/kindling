@@ -25,7 +25,7 @@ export class Tier2 implements Tier {
   async isAvailable(): Promise<boolean> {
     try {
       const models = await this.ollamaClient.list();
-      const hasModel = models.models.some(m => m.name.startsWith(this.model.split(':')[0]));
+      const hasModel = models.models.some(m => m.name === this.model || m.name.startsWith(this.model + '-'));
       if (hasModel) return true;
     } catch {
       // Ollama not available
@@ -63,7 +63,7 @@ export class Tier2 implements Tier {
   private async isOllamaModelAvailable(): Promise<boolean> {
     try {
       const models = await this.ollamaClient.list();
-      return models.models.some(m => m.name.startsWith(this.model.split(':')[0]));
+      return models.models.some(m => m.name === this.model || m.name.startsWith(this.model + '-'));
     } catch {
       return false;
     }

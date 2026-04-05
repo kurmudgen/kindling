@@ -6,7 +6,7 @@
     "quantization": "q4_0"
   },
   "tier2": {
-    "model": "gemma2:27b",
+    "model": "qwen2.5:14b",
     "maxCores": 8,
     "quantization": "q4_0",
     "apiFallback": true
