@@ -10,6 +10,7 @@ import { logEscalation, logRecoveryEvent, hashPrompt } from '../sleep/logger.js'
 import { MetaConfidenceModel } from '../meta/meta-confidence.js';
 import { runWithRecovery, circuitBreaker } from '../recovery/recovery.js';
 import type { RecoveryEvent } from '../recovery/recovery.js';
+import { recordVcrEntry, isRecordingActive } from '../tools/vcr.js';
 import type { Tier, TierQuery, TierResponse, ValenceScore } from '../tiers/tier-interface.js';
 
 const log = pino({ level: process.env.KINDLING_LOG_LEVEL ?? 'info' });
@@ -207,6 +208,24 @@ export class Router {
       },
       'Query complete'
     );
+
+    // VCR recording — privacy-safe (hash only, no raw prompt)
+    if (isRecordingActive()) {
+      recordVcrEntry({
+        timestamp: new Date().toISOString(),
+        queryHash: hashPrompt(prompt),
+        valence,
+        signals: response.escalationSignals,
+        startTier,
+        finalTier: currentTierId,
+        confidence: response.confidence,
+        routerDecision: decision.shouldEscalate ? 'escalate' : 'stay',
+        metaAction,
+        escalated,
+        responseTokens: response.tokens.length,
+        recoveryEventCount: recoveryEvents.length,
+      });
+    }
 
     return {
       text,
