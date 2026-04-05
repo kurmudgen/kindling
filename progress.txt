@@ -1,35 +1,53 @@
-KINDLING BUILD — Phase 1
-Last updated: 2026-04-04T15:30:00Z
-Last commit: initial build — all Phase 1 components
+KINDLING BUILD — Phase 1 Complete + GitHub Launch
+Last updated: 2026-04-05T02:50:00Z
+Repo: https://github.com/kurmudgen/kindling
 
-COMPLETED:
-- [x] Project init, tsconfig, package.json, folder structure
-- [x] tier-interface.ts — shared interface for all tiers
-- [x] config.ts + config JSON files (default, ddr4-budget, prosumer)
-- [x] tier1.ts — Ollama local (Shallow)
-- [x] valence.ts — query valence scoring
-- [x] confidence.ts — confidence signal aggregation + routing decisions
-- [x] speculative.ts + vitest unit tests (12 tests passing)
-- [x] tier2.ts — Ollama + API fallback (Medium)
-- [x] tier3.ts — API stand-in (Deep) with cost tracking
-- [x] router.ts — main query orchestration
-- [x] logger.ts — escalation event logger (privacy-safe, hash-only)
-- [x] analyst.ts — sleep stage API analysis with learned.json persistence
-- [x] bench.ts — benchmark runner (55 queries across 4 categories)
-- [x] index.ts — entry point with REPL
-- [x] README.md
-- [x] .env.example, .gitignore
+PHASE 1 STATUS: COMPLETE
 
-IN PROGRESS:
-- (none)
+BENCHMARK SUMMARY:
+  Total: 55 queries | 55 pass | 0 fail
+  Simple (20):  avg 1,646ms | avg 37 tokens  | coherence 0.851
+  Medium (20):  avg 2,139ms | avg 404 tokens | coherence 0.887
+  Hard (10):    avg 2,500ms | avg 478 tokens | coherence 0.900
+  Mixed (5):    avg 2,757ms | avg 507 tokens | coherence 0.878
 
-REMAINING:
-- [ ] Phase 2: Local streaming for Tier 3
-- [ ] Phase 3: Learned valence classifier (replace rule-based)
-- [ ] Phase 3: Full speculative parallel execution in router
+REPL TEST SUMMARY:
+  13/13 queries completed successfully
+  All queries handled by Tier 1 (qwen2.5:1.5b)
+  Zero escalations — confidence scores range 0.58-0.83
+  Simple queries: 262-3888ms (first query cold-start)
+  Medium queries: 1240-3020ms, 249-564 tokens
+  Hard queries: 2481-3965ms, 441-681 tokens
+  Edge casual/minimal: 613-619ms, 7 tokens each
+  Response quality: Good across all categories. 1.5b model handles
+  even "hard" architecture questions with structured, relevant output.
 
-STOP POINT NOTES:
-Phase 1 complete. All source files compile cleanly (tsc --noEmit passes).
-12 unit tests pass for speculative buffer.
-To test end-to-end: ensure Ollama is running with qwen2.5:1.5b pulled, set ANTHROPIC_API_KEY in .env.
-npm run start for interactive REPL, npm run bench for benchmarks.
+SLEEP ANALYST OUTPUT:
+  Not run — requires ANTHROPIC_API_KEY. Tier 3 disabled for this session.
+
+ISSUES FOUND:
+  1. ESCALATION NEVER TRIGGERS: Confidence scores from speed-based estimation
+     are too uniform (0.58-0.83) across all query complexities. The router
+     never escalates because signals don't differentiate easy from hard.
+     Root cause: No direct logprobs from Ollama generate API.
+     Fix: Use Ollama raw mode or /api/generate with logprobs in Phase 2.
+
+  2. MEDIUM > SIMPLE CONFIDENCE PARADOX: Longer responses from medium/hard
+     queries show HIGHER confidence than simple ones because vocabulary
+     diversity (semantic velocity) is higher in longer structured responses.
+     The signal is inverted for this use case.
+
+  3. COLD START LATENCY: First query after model warmup takes 4-16s.
+     Subsequent queries 250ms-4s. Warmup strategy works but first real
+     query still pays a penalty.
+
+  4. API KEY: System env has stale ANTHROPIC_API_KEY. dotenv override mode
+     added to handle this. User needs to set valid key for Tier 2 fallback
+     and Tier 3.
+
+PHASE 2 START POINT:
+  - Fix escalation signals: implement logprob-based estimation via Ollama raw API
+  - Add pre-generation valence-based escalation path for obviously complex queries
+  - Local Tier 3 layer streaming (NVMe-based, replaces API stand-in)
+  - GPU staging buffer (optional, graceful fallback if no GPU)
+  - Begin with: src/tiers/tier3-local.ts
