@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
@@ -30,7 +30,9 @@ export interface RoutingAdjustment {
   reason: string;
 }
 
-const SYSTEM_PROMPT = `You are analyzing the inference behavior of Kindling, an adaptive tiered LLM runtime. You will receive a session escalation log showing when and why the system escalated queries from cheaper to more expensive compute tiers. Your job is to identify patterns, suggest routing weight adjustments to improve future escalation decisions, and identify concept clusters worth pre-warming. Respond only in the JSON format specified. Be specific and actionable.`;
+const SYSTEM_PROMPT = `You are analyzing the inference behavior of Kindling, an adaptive tiered LLM runtime. You will receive a session escalation log showing when and why the system escalated queries from cheaper to more expensive compute tiers. Your job is to identify patterns, suggest routing weight adjustments to improve future escalation decisions, and identify concept clusters worth pre-warming. Respond only in the JSON format specified. Be specific and actionable.
+
+You may also receive outputs from previous sleep analysis sessions. Build on what was learned before. Do not repeat recommendations already made. If previous recommendations appear to have improved routing accuracy, note that. If they appear not to have helped, suggest alternatives.`;
 
 export class SleepAnalyst {
   private client: Anthropic;
@@ -111,6 +113,18 @@ export class SleepAnalyst {
       currentWeights: config.escalation,
     };
 
+    // Load prior session context for longitudinal awareness
+    const priorSessions = this.loadPriorSessions(3);
+    let userContent = `Analyze this escalation session and respond with JSON only:\n\n${JSON.stringify(payload, null, 2)}`;
+
+    if (priorSessions.length > 0) {
+      userContent += `\n\n--- PRIOR SESSION ANALYSES (${priorSessions.length} most recent) ---\n`;
+      for (const prior of priorSessions) {
+        userContent += `\n${JSON.stringify(prior, null, 2)}\n`;
+      }
+      userContent += '\nBuild on the findings above. Reference what was recommended before and whether it appears to have helped based on the current session data.';
+    }
+
     const response = await this.client.messages.create({
       model: this.model,
       max_tokens: 2048,
@@ -118,7 +132,7 @@ export class SleepAnalyst {
       messages: [
         {
           role: 'user',
-          content: `Analyze this escalation session and respond with JSON only:\n\n${JSON.stringify(payload, null, 2)}`,
+          content: userContent,
         },
       ],
     });
@@ -167,6 +181,22 @@ export class SleepAnalyst {
 
     log.info({ summary: analysis.session_summary }, 'Sleep analysis complete');
     return analysis;
+  }
+
+  private loadPriorSessions(count: number): SleepAnalysis[] {
+    if (!existsSync(SLEEP_DIR)) return [];
+    try {
+      const files = readdirSync(SLEEP_DIR)
+        .filter(f => f.endsWith('.json'))
+        .sort()
+        .slice(-count);
+      return files.map(f => {
+        const content = readFileSync(resolve(SLEEP_DIR, f), 'utf-8');
+        return JSON.parse(content) as SleepAnalysis;
+      });
+    } catch {
+      return [];
+    }
   }
 
   private saveSleepLog(analysis: SleepAnalysis): void {

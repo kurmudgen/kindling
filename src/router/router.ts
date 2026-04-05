@@ -7,6 +7,7 @@ import { Tier1 } from '../tiers/tier1.js';
 import { Tier2 } from '../tiers/tier2.js';
 import { Tier3 } from '../tiers/tier3.js';
 import { logEscalation, hashPrompt } from '../sleep/logger.js';
+import { MetaConfidenceModel } from '../meta/meta-confidence.js';
 import type { Tier, TierQuery, TierResponse, ValenceScore } from '../tiers/tier-interface.js';
 
 const log = pino({ level: process.env.KINDLING_LOG_LEVEL ?? 'info' });
@@ -18,17 +19,20 @@ export interface QueryResult {
   escalationPath: number[];
   latencyMs: number;
   confidence: number;
+  metaAction?: 'confirm' | 'suppress' | 'force';
 }
 
 export class Router {
   private tiers: Map<number, Tier> = new Map();
   private confidence: ConfidenceAggregator;
   private buffer: SpeculativeBuffer;
+  private meta: MetaConfidenceModel;
   private initialized = false;
 
   constructor() {
     this.confidence = new ConfidenceAggregator();
     this.buffer = new SpeculativeBuffer();
+    this.meta = new MetaConfidenceModel();
   }
 
   async init(): Promise<void> {
@@ -109,9 +113,22 @@ export class Router {
       valence
     );
 
+    // Meta-confidence correction layer
+    const metaDecision = this.meta.evaluate(decision, response.escalationSignals, valence, currentTierId);
+    let metaAction = metaDecision.action;
+
+    let shouldEscalate = decision.shouldEscalate;
+    if (metaAction === 'suppress' && shouldEscalate) {
+      shouldEscalate = false;
+      log.info({ reason: metaDecision.reason }, 'Meta-confidence suppressed escalation');
+    } else if (metaAction === 'force' && !shouldEscalate && currentTierId < 3) {
+      shouldEscalate = true;
+      log.info({ reason: metaDecision.reason }, 'Meta-confidence forced escalation');
+    }
+
     let escalated = false;
 
-    if (decision.shouldEscalate && decision.targetTier !== currentTierId) {
+    if (shouldEscalate && decision.targetTier !== currentTierId) {
       escalated = true;
       const previousTier = currentTierId;
       currentTierId = decision.targetTier;
@@ -151,6 +168,20 @@ export class Router {
     }
 
     const totalLatencyMs = performance.now() - startTime;
+
+    // Record outcome for meta-confidence learning
+    const text = response.tokens.join(' ');
+    const coherence = this.estimateCoherence(text);
+    this.meta.recordOutcome(
+      response.escalationSignals,
+      valence,
+      escalated ? 'escalate' : 'stay',
+      metaAction,
+      startTier,
+      response.tokens.length,
+      coherence
+    );
+
     log.info(
       {
         tier: currentTierId,
@@ -158,18 +189,20 @@ export class Router {
         latencyMs: Math.round(totalLatencyMs),
         tokens: response.tokens.length,
         escalated,
+        metaAction,
         signals: response.escalationSignals,
       },
       'Query complete'
     );
 
     return {
-      text: response.tokens.join(' '),
+      text,
       tier: currentTierId as 1 | 2 | 3,
       escalated,
       escalationPath,
       latencyMs: totalLatencyMs,
       confidence: response.confidence,
+      metaAction,
     };
   }
 
@@ -206,6 +239,17 @@ export class Router {
     }
 
     return 1;
+  }
+
+  private estimateCoherence(text: string): number {
+    if (!text || text.length === 0) return 0;
+    const words = text.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return 0;
+    const hasSentences = /[.!?]/.test(text) ? 0.3 : 0;
+    const uniqueRatio = new Set(words.map(w => w.toLowerCase())).size / words.length;
+    const diversityScore = Math.min(0.4, uniqueRatio * 0.5);
+    const lengthScore = Math.min(0.3, words.length / 100);
+    return Math.min(1, hasSentences + diversityScore + lengthScore);
   }
 
   private async generateFromTier(

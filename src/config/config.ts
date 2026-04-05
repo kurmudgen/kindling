@@ -80,11 +80,13 @@ export function loadConfig(profileOverride?: string): KindlingConfig {
 
   let config = loadJsonFile(profilePath);
 
-  // Merge learned adjustments if they exist
-  const learnedPath = resolve(CONFIG_DIR, 'learned.json');
-  if (existsSync(learnedPath)) {
-    const learned = loadJsonFile(learnedPath);
-    config = deepMerge(config, learned);
+  // Merge learned adjustments if they exist (unless explicitly disabled)
+  if (!process.env.KINDLING_IGNORE_LEARNED) {
+    const learnedPath = resolve(CONFIG_DIR, 'learned.json');
+    if (existsSync(learnedPath)) {
+      const learned = loadJsonFile(learnedPath);
+      config = deepMerge(config, learned);
+    }
   }
 
   _config = config as unknown as KindlingConfig;
