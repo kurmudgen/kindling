@@ -2,6 +2,7 @@ import pino from 'pino';
 import { getConfig } from '../config/config.js';
 import { scoreValence } from './valence.js';
 import { ConfidenceAggregator } from './confidence.js';
+import { ConcurrencyGuard } from './concurrency.js';
 import { SpeculativeBuffer } from '../buffer/speculative.js';
 import { Tier1 } from '../tiers/tier1.js';
 import { Tier2 } from '../tiers/tier2.js';
@@ -28,15 +29,20 @@ export interface QueryResult {
 
 export class Router {
   private tiers: Map<number, Tier> = new Map();
-  private confidence: ConfidenceAggregator;
-  private buffer: SpeculativeBuffer;
+  // meta-confidence is intentionally shared — it learns across queries
   private meta: MetaConfidenceModel;
+  // concurrency guard tracks in-flight queries
+  private guard: ConcurrencyGuard;
   private initialized = false;
 
   constructor() {
-    this.confidence = new ConfidenceAggregator();
-    this.buffer = new SpeculativeBuffer();
     this.meta = new MetaConfidenceModel();
+    this.guard = new ConcurrencyGuard();
+  }
+
+  /** Get current in-flight query count (for diagnostics) */
+  inFlightCount(): number {
+    return this.guard.inFlightCount();
   }
 
   async init(): Promise<void> {
@@ -83,10 +89,30 @@ export class Router {
   async queryDetailed(prompt: string, context: string[] = []): Promise<QueryResult> {
     if (!this.initialized) await this.init();
 
+    // Acquire a generation number for this query — isolates concurrent queries
+    const generation = this.guard.acquire();
     const startTime = performance.now();
+
+    // Per-query state — no shared confidence or buffer
+    const confidence = new ConfidenceAggregator();
+    const buffer = new SpeculativeBuffer();
+    void buffer; // buffer reserved for future per-token routing
+
+    try {
+      return await this.queryInternal(prompt, context, startTime, confidence, generation);
+    } finally {
+      this.guard.release(generation);
+    }
+  }
+
+  private async queryInternal(
+    prompt: string,
+    context: string[],
+    startTime: number,
+    confidence: ConfidenceAggregator,
+    _generation: number
+  ): Promise<QueryResult> {
     const valence = scoreValence(prompt);
-    this.buffer.reset();
-    this.confidence.reset();
 
     log.debug({ valence }, 'Query valence scored');
 
@@ -120,7 +146,7 @@ export class Router {
     }
 
     // Check escalation signals from the response
-    const decision = this.confidence.decide(
+    const decision = confidence.decide(
       currentTierId,
       response.escalationSignals,
       valence
