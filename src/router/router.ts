@@ -11,6 +11,15 @@ import type { Tier, TierQuery, TierResponse, ValenceScore } from '../tiers/tier-
 
 const log = pino({ level: process.env.KINDLING_LOG_LEVEL ?? 'info' });
 
+export interface QueryResult {
+  text: string;
+  tier: 1 | 2 | 3;
+  escalated: boolean;
+  escalationPath: number[];
+  latencyMs: number;
+  confidence: number;
+}
+
 export class Router {
   private tiers: Map<number, Tier> = new Map();
   private confidence: ConfidenceAggregator;
@@ -59,7 +68,11 @@ export class Router {
     this.initialized = true;
   }
 
-  async query(prompt: string, context: string[] = []): Promise<string> {
+  /**
+   * Route a query through the tier system and return the result.
+   * Returns a QueryResult with the response text, tier used, and routing metadata.
+   */
+  async queryDetailed(prompt: string, context: string[] = []): Promise<QueryResult> {
     if (!this.initialized) await this.init();
 
     const startTime = performance.now();
@@ -69,12 +82,11 @@ export class Router {
 
     log.debug({ valence }, 'Query valence scored');
 
-    // Determine starting tier based on valence
-    let currentTierId: 1 | 2 | 3 = 1;
-    if (valence.composite > 0.7 && this.tiers.has(2)) {
-      currentTierId = 2;
-      log.info('High valence, starting at Tier 2');
-    }
+    // PRIORITY 1.2: Valence-based pre-escalation gate
+    // High-valence queries skip Tier 1 entirely
+    let startTier = this.determineStartTier(valence);
+    let currentTierId = startTier;
+    const escalationPath: number[] = [currentTierId];
 
     const tierQuery: TierQuery = {
       prompt,
@@ -83,84 +95,117 @@ export class Router {
       valenceScore: valence,
     };
 
-    // Phase 1 simplified flow: generate from starting tier, check confidence,
-    // escalate if needed. Full speculative parallel execution in Phase 2.
+    // Generate from starting tier
     let response = await this.generateFromTier(currentTierId, tierQuery);
 
     if (!response) {
       throw new Error('No tier available to handle query');
     }
 
-    // Populate buffer with Tier 1 tokens
-    for (const token of response.tokens) {
-      this.buffer.push(token);
-      if (this.buffer.isFull()) {
-        // Check if we should escalate
-        const decision = this.confidence.decide(
-          currentTierId,
-          response.escalationSignals,
-          valence
-        );
+    // Check escalation signals from the response
+    const decision = this.confidence.decide(
+      currentTierId,
+      response.escalationSignals,
+      valence
+    );
 
-        if (decision.shouldEscalate && decision.targetTier !== currentTierId) {
-          const { rejectedTokens } = this.buffer.reject();
-          log.info(
-            { from: currentTierId, to: decision.targetTier, reason: decision.reason },
-            'Escalating'
-          );
+    let escalated = false;
 
-          logEscalation({
-            queryHash: hashPrompt(prompt),
-            valenceScore: valence,
-            tier1ConfidenceAtHandoff: decision.confidence,
-            escalatedToTier: decision.targetTier,
-            tokensBeforeEscalation: this.buffer.getFlushedTokens().length + rejectedTokens.length,
-            handoffSuccessful: true,
-            totalLatencyMs: performance.now() - startTime,
-          });
+    if (decision.shouldEscalate && decision.targetTier !== currentTierId) {
+      escalated = true;
+      const previousTier = currentTierId;
+      currentTierId = decision.targetTier;
+      escalationPath.push(currentTierId);
 
-          // Generate from higher tier
-          const escalatedResponse = await this.generateFromTier(decision.targetTier, tierQuery);
-          if (escalatedResponse) {
-            response = escalatedResponse;
-            currentTierId = decision.targetTier;
-            // Replace buffer with escalated response
-            this.buffer.overrideFlushed(response.tokens);
-          } else {
-            // Escalation failed, keep what we have
-            this.buffer.confirm();
-            log.warn('Escalation target unavailable, keeping lower tier output');
-          }
-          break;
-        } else {
-          // Confident enough, flush buffer
-          this.buffer.confirm();
-        }
+      log.info(
+        {
+          from: previousTier,
+          to: currentTierId,
+          reason: decision.reason,
+          confidence: decision.confidence.toFixed(3),
+          signals: response.escalationSignals,
+        },
+        'Escalating'
+      );
+
+      logEscalation({
+        queryHash: hashPrompt(prompt),
+        valenceScore: valence,
+        tier1ConfidenceAtHandoff: decision.confidence,
+        escalatedToTier: currentTierId,
+        tokensBeforeEscalation: response.tokens.length,
+        handoffSuccessful: true,
+        totalLatencyMs: performance.now() - startTime,
+      });
+
+      // Generate from higher tier
+      const escalatedResponse = await this.generateFromTier(currentTierId, tierQuery);
+      if (escalatedResponse) {
+        response = escalatedResponse;
+      } else {
+        // Escalation target unavailable, keep lower tier output
+        currentTierId = previousTier;
+        escalationPath.push(previousTier);
+        log.warn('Escalation target unavailable, keeping lower tier output');
       }
-    }
-
-    // If buffer has unflushed tokens, flush them
-    if (this.buffer.snapshot().state === 'filling') {
-      this.buffer.confirm();
-    }
-
-    // If we never populated the buffer (e.g., started at tier 2+), set output directly
-    if (this.buffer.getFlushedTokens().length === 0 && response.tokens.length > 0) {
-      this.buffer.overrideFlushed(response.tokens);
     }
 
     const totalLatencyMs = performance.now() - startTime;
     log.info(
       {
         tier: currentTierId,
-        confidence: response.confidence,
+        confidence: response.confidence.toFixed(3),
         latencyMs: Math.round(totalLatencyMs),
-        tokens: this.buffer.getFlushedTokens().length,
+        tokens: response.tokens.length,
+        escalated,
+        signals: response.escalationSignals,
       },
       'Query complete'
     );
 
-    return this.buffer.getOutput();
+    return {
+      text: response.tokens.join(' '),
+      tier: currentTierId as 1 | 2 | 3,
+      escalated,
+      escalationPath,
+      latencyMs: totalLatencyMs,
+      confidence: response.confidence,
+    };
+  }
+
+  /** Convenience method — returns just the text */
+  async query(prompt: string, context: string[] = []): Promise<string> {
+    const result = await this.queryDetailed(prompt, context);
+    return result.text;
+  }
+
+  /**
+   * Determine which tier to start at based on valence score.
+   *
+   * High-complexity or high-stakes queries skip straight to Tier 2 or 3,
+   * avoiding the latency of generating a full Tier 1 response that will
+   * inevitably be thrown away.
+   */
+  private determineStartTier(valence: ValenceScore): 1 | 2 | 3 {
+    // Critical: high stakes + high complexity → Tier 3
+    if (valence.composite > 0.50 && valence.stakes > 0.5 && this.tiers.has(3)) {
+      log.info(
+        { composite: valence.composite.toFixed(2), stakes: valence.stakes.toFixed(2) },
+        'Critical valence, starting at Tier 3'
+      );
+      return 3;
+    }
+
+    // High complexity or multi-part queries → Tier 2
+    if (valence.composite > 0.35 && this.tiers.has(2)) {
+      log.info(
+        { composite: valence.composite.toFixed(2), complexity: valence.complexity.toFixed(2) },
+        'High valence, starting at Tier 2'
+      );
+      return 2;
+    }
+
+    return 1;
   }
 
   private async generateFromTier(

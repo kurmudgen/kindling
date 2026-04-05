@@ -23,8 +23,8 @@
     "semanticVelocityWeight": 0.25,
     "surpriseScoreWeight": 0.30,
     "attentionAnomalyWeight": 0.15,
-    "escalationThreshold": 0.70,
-    "deescalationThreshold": 0.40,
+    "escalationThreshold": 0.35,
+    "deescalationThreshold": 0.20,
     "deescalationTokenWindow": 10
   },
   "sleep": {

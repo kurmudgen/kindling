@@ -1,0 +1,120 @@
+KINDLING REPL TEST SESSION — PHASE 2
+Run date: 2026-04-05T04:57:03.396Z
+Profile: default
+======================================================================
+
+ROUTING ACCURACY: 11/13 (85%)
+
+--- Query 1 (simple) [OK] ---
+Prompt: What is the capital of France?
+Expected: Tier 1 | Actual: Tier 1
+Escalated: false | Path: 1
+Confidence: 0.991 | Latency: 33321ms
+Response tokens: 6
+Preview: The capital of France is Paris.
+
+--- Query 2 (simple) [OK] ---
+Prompt: Write a haiku about rain
+Expected: Tier 1 | Actual: Tier 1
+Escalated: false | Path: 1
+Confidence: 0.793 | Latency: 1070ms
+Response tokens: 10
+Preview: Raindrops fall, City awash in silver mist— Paris sighs, relaxes.
+
+--- Query 3 (simple) [OK] ---
+Prompt: What does HTTP stand for?
+Expected: Tier 1 | Actual: Tier 1
+Escalated: false | Path: 1
+Confidence: 0.966 | Latency: 586ms
+Response tokens: 6
+Preview: HTTP stands for Hypertext Transfer Protocol.
+
+--- Query 4 (simple) [OK] ---
+Prompt: Convert 100 fahrenheit to celsius
+Expected: Tier 1 | Actual: Tier 1
+Escalated: false | Path: 1
+Confidence: 0.898 | Latency: 7042ms
+Response tokens: 72
+Preview: To convert from Fahrenheit (F) to Celsius (C), you can use the formula: \[ C = \frac{5}{9} (F - 32) \] So, for 100 degrees Fahrenheit, we would calculate as follows: \( C = \frac{5}{9} (100 - 32) \) \
+
+--- Query 5 (medium) [OK] ---
+Prompt: Explain the difference between TCP and UDP and when you would choose each
+Expected: Tier 2 | Actual: Tier 2
+Escalated: true | Path: 1 → 2
+Confidence: 0.824 | Latency: 70234ms
+Response tokens: 428
+Preview: Certainly! Both TCP (Transmission Control Protocol) and UDP (User Datagram Protocol) are protocols used for sending information over a network, but they differ significantly in their characteristics a
+
+--- Query 6 (medium) [MISMATCH] ---
+Prompt: Write a Python function that implements binary search with error handling
+Expected: Tier 2 | Actual: Tier 1
+Escalated: false | Path: 1
+Confidence: 0.825 | Latency: 38983ms
+Response tokens: 534
+Preview: Certainly! Below is an example of a Python function that performs a binary search on a sorted list, including basic error handling to manage potential issues such as incorrect data types or empty list
+
+--- Query 7 (medium) [OK] ---
+Prompt: Compare the architectural differences between REST and GraphQL APIs
+Expected: Tier 2 | Actual: Tier 2
+Escalated: true | Path: 1 → 2
+Confidence: 0.801 | Latency: 85041ms
+Response tokens: 708
+Preview: Certainly! Both REST (Representational State Transfer) and GraphQL are popular approaches for building web APIs, but they differ significantly in their design philosophies, data handling mechanisms, a
+
+--- Query 8 (medium) [MISMATCH] ---
+Prompt: Explain how garbage collection works in JavaScript
+Expected: Tier 2 | Actual: Tier 1
+Escalated: false | Path: 1
+Confidence: 0.764 | Latency: 46721ms
+Response tokens: 643
+Preview: Garbage Collection is a mechanism used by programming languages to automatically manage memory usage for an application's objects without requiring explicit calls from programmers to release unused re
+
+--- Query 9 (hard) [OK] ---
+Prompt: Design a distributed rate limiting system that works across multiple servers without a single point of failure. Include the data structures, algorithms, and tradeoffs.
+Expected: Tier 3 | Actual: Tier 2
+Escalated: false | Path: 2
+Confidence: 0.81 | Latency: 53155ms
+Response tokens: 646
+Preview: Designing a distributed rate-limiting system that operates reliably across multiple servers involves several key components: state management, coordination between nodes, and efficient handling of con
+
+--- Query 10 (hard) [OK] ---
+Prompt: Analyze the security implications of JWT tokens stored in localStorage versus httpOnly cookies, including specific attack vectors and mitigations
+Expected: Tier 3 | Actual: Tier 2
+Escalated: false | Path: 2
+Confidence: 0.839 | Latency: 53469ms
+Response tokens: 634
+Preview: JWT (JSON Web Tokens) are widely used for securing web applications due to their simplicity and versatility. However, storing JWTs can introduce security risks depending on where they are stored. This
+
+--- Query 11 (edge-urgency) [OK] ---
+Prompt: urgent: production is down, what are the first 5 things to check?
+Expected: Tier 2+ | Actual: Tier 2
+Escalated: true | Path: 1 → 2
+Confidence: 0.823 | Latency: 47095ms
+Response tokens: 293
+Preview: When faced with a critical situation where production is down, it's essential to act quickly and methodically. Here are the first five things you should check: 1. **Incident Notification Systems**: - 
+
+--- Query 12 (edge-casual) [OK] ---
+Prompt: hey what's up
+Expected: Tier 1 | Actual: Tier 1
+Escalated: false | Path: 1
+Confidence: 0.927 | Latency: 959ms
+Response tokens: 7
+Preview: Hello! How can I help you today?
+
+--- Query 13 (edge-minimal) [OK] ---
+Prompt: ok
+Expected: Tier 1 | Actual: Tier 1
+Escalated: false | Path: 1
+Confidence: 0.842 | Latency: 1169ms
+Response tokens: 11
+Preview: Sure, what would you like to chat about or do next?
+
+======================================================================
+ROUTING SUMMARY
+
+simple: 4 queries | avg 10505ms | avg 24 tokens | tiers: [T1, T1, T1, T1] | accuracy: 4/4
+medium: 4 queries | avg 60245ms | avg 578 tokens | tiers: [T2, T1, T2, T1] | accuracy: 2/4
+hard: 2 queries | avg 53312ms | avg 640 tokens | tiers: [T2, T2] | accuracy: 2/2
+edge-urgency: 1 queries | avg 47095ms | avg 293 tokens | tiers: [T2] | accuracy: 1/1
+edge-casual: 1 queries | avg 959ms | avg 7 tokens | tiers: [T1] | accuracy: 1/1
+edge-minimal: 1 queries | avg 1169ms | avg 11 tokens | tiers: [T1] | accuracy: 1/1

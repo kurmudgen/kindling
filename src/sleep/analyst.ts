@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import pino from 'pino';
 import { getConfig } from '../config/config.js';
 import { getLogFilePath, getSessionId } from './logger.js';
+import { ConceptPrewarmer } from './prewarmer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -130,8 +131,18 @@ export class SleepAnalyst {
     let analysis: SleepAnalysis;
     try {
       // Extract JSON from response (may be wrapped in markdown code blocks)
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('No JSON found in response');
+      // Use balanced brace matching to find the first complete JSON object
+      const jsonStart = text.indexOf('{');
+      if (jsonStart === -1) throw new Error('No JSON found in response');
+      let depth = 0;
+      let jsonEnd = -1;
+      for (let i = jsonStart; i < text.length; i++) {
+        if (text[i] === '{') depth++;
+        else if (text[i] === '}') { depth--; if (depth === 0) { jsonEnd = i + 1; break; } }
+      }
+      if (jsonEnd === -1) throw new Error('Unclosed JSON object in response');
+      const jsonMatch = [text.slice(jsonStart, jsonEnd)];
+      if (!jsonMatch[0]) throw new Error('Empty JSON object in response');
       analysis = JSON.parse(jsonMatch[0]) as SleepAnalysis;
     } catch (err) {
       log.error({ err, text }, 'Failed to parse sleep analysis response');
@@ -143,6 +154,16 @@ export class SleepAnalyst {
 
     // Apply routing adjustments
     this.applyAdjustments(analysis.routing_adjustments);
+
+    // Pre-warm concepts identified by the analyst
+    if (analysis.concepts_to_prewarm && analysis.concepts_to_prewarm.length > 0) {
+      try {
+        const prewarmer = new ConceptPrewarmer();
+        await prewarmer.prewarm(analysis.concepts_to_prewarm);
+      } catch (err) {
+        log.warn({ err }, 'Concept pre-warming failed');
+      }
+    }
 
     log.info({ summary: analysis.session_summary }, 'Sleep analysis complete');
     return analysis;

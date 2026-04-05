@@ -1,12 +1,16 @@
-// TODO: Phase 2 — Replace API stand-in with local streaming inference.
-// This tier currently uses the Anthropic API as a placeholder.
-// Phase 2 will implement direct local model streaming with speculative decoding.
+/**
+ * Tier 3 — Deep tier router.
+ *
+ * Prefers local NVMe-streamed model (tier3-local.ts) when available.
+ * Falls back to Anthropic API when local model is not pulled.
+ */
 
 import Anthropic from '@anthropic-ai/sdk';
 import { getConfig } from '../config/config.js';
+import { Tier3Local } from './tier3-local.js';
+import { computeConfidence } from './signals.js';
 import type { Tier, TierQuery, TierResponse, EscalationSignals } from './tier-interface.js';
 
-// Rough per-token cost estimates (USD) for cost tracking
 const COST_PER_INPUT_TOKEN: Record<string, number> = {
   'claude-sonnet-4-6': 3.0 / 1_000_000,
   'claude-opus-4-6': 15.0 / 1_000_000,
@@ -18,27 +22,69 @@ const COST_PER_OUTPUT_TOKEN: Record<string, number> = {
 
 export class Tier3 implements Tier {
   readonly id = 3 as const;
-  readonly name = 'Deep (API Stand-in)';
-  private client: Anthropic;
-  private model: string;
+  readonly name = 'Deep (Local + API Fallback)';
+  private localTier: Tier3Local | null = null;
+  private apiClient: Anthropic | null = null;
+  private apiModel: string;
 
   constructor() {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      throw new Error('Tier 3 requires ANTHROPIC_API_KEY environment variable');
+    const config = getConfig();
+    this.apiModel = config.tier3.model;
+
+    // Try to initialize local tier
+    try {
+      this.localTier = new Tier3Local();
+    } catch {
+      // Local tier not configured
     }
-    this.client = new Anthropic();
-    this.model = getConfig().tier3.model;
+
+    // Initialize API fallback if key available
+    if (process.env.ANTHROPIC_API_KEY) {
+      this.apiClient = new Anthropic();
+    }
+
+    if (!this.localTier && !this.apiClient) {
+      throw new Error(
+        'Tier 3 requires either a local model or ANTHROPIC_API_KEY environment variable'
+      );
+    }
   }
 
   async isAvailable(): Promise<boolean> {
-    return !!process.env.ANTHROPIC_API_KEY;
+    if (this.localTier && (await this.localTier.isAvailable())) return true;
+    return !!this.apiClient;
   }
 
   async warmup(): Promise<void> {
-    // API tier has no warmup — connection pooling handled by SDK
+    if (this.localTier) {
+      try {
+        await this.localTier.warmup();
+        return;
+      } catch {
+        // Local warmup failed, fall through to API
+      }
+    }
+    // API tier has no warmup
   }
 
   async generate(query: TierQuery): Promise<TierResponse> {
+    // Prefer local
+    if (this.localTier && (await this.localTier.isAvailable())) {
+      try {
+        return await this.localTier.generate(query);
+      } catch {
+        // Fall through to API
+      }
+    }
+
+    if (this.apiClient) {
+      return this.generateAPI(query);
+    }
+
+    throw new Error('Tier 3: No backend available');
+  }
+
+  private async generateAPI(query: TierQuery): Promise<TierResponse> {
     const start = performance.now();
     const messages: Anthropic.MessageParam[] = [];
 
@@ -48,8 +94,8 @@ export class Tier3 implements Tier {
     }
     messages.push({ role: 'user', content: query.prompt });
 
-    const response = await this.client.messages.create({
-      model: this.model,
+    const response = await this.apiClient!.messages.create({
+      model: this.apiModel,
       max_tokens: query.maxTokens,
       messages,
     });
@@ -61,38 +107,32 @@ export class Tier3 implements Tier {
       .join('');
     const tokens = text.split(/\s+/).filter(Boolean);
 
-    const inputCostRate = COST_PER_INPUT_TOKEN[this.model] ?? COST_PER_INPUT_TOKEN['claude-sonnet-4-6'];
-    const outputCostRate = COST_PER_OUTPUT_TOKEN[this.model] ?? COST_PER_OUTPUT_TOKEN['claude-sonnet-4-6'];
+    const inputCostRate = COST_PER_INPUT_TOKEN[this.apiModel] ?? COST_PER_INPUT_TOKEN['claude-sonnet-4-6'];
+    const outputCostRate = COST_PER_OUTPUT_TOKEN[this.apiModel] ?? COST_PER_OUTPUT_TOKEN['claude-sonnet-4-6'];
     const costEstimate =
       response.usage.input_tokens * inputCostRate +
       response.usage.output_tokens * outputCostRate;
 
     const escalationSignals: EscalationSignals = {
       tokenProbabilitySpread: 0.05,
-      semanticVelocity: this.estimateSemanticVelocity(tokens),
+      semanticVelocity: 0.05,
       surpriseScore: 0.02,
       attentionAnomalyScore: 0,
     };
 
     return {
       tokens,
-      confidence: 0.95, // Deep tier is assumed highly confident
+      confidence: 0.95,
       tier: 3,
       escalationSignals,
       latencyMs,
       metadata: {
         source: 'api',
-        model: this.model,
+        model: this.apiModel,
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
         costEstimateUSD: costEstimate,
       },
     };
-  }
-
-  private estimateSemanticVelocity(tokens: string[]): number {
-    if (tokens.length === 0) return 0;
-    const unique = new Set(tokens.map(t => t.toLowerCase()));
-    return unique.size / tokens.length;
   }
 }

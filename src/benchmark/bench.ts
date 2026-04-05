@@ -17,6 +17,10 @@ const log = pino({ level: 'info' });
 interface BenchmarkResult {
   query: string;
   category: string;
+  tier: number;
+  escalated: boolean;
+  escalationPath: number[];
+  confidence: number;
   latencyMs: number;
   responseLength: number;
   coherenceScore: number;
@@ -24,7 +28,6 @@ interface BenchmarkResult {
   error?: string;
 }
 
-// Test queries organized by expected tier
 const SIMPLE_QUERIES = [
   'What is 2 + 2?',
   'Name a color.',
@@ -97,7 +100,6 @@ function estimateCoherence(text: string): number {
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length === 0) return 0;
 
-  // Simple heuristics: sentence structure, vocabulary diversity, length adequacy
   const hasSentences = /[.!?]/.test(text) ? 0.3 : 0;
   const uniqueRatio = new Set(words.map(w => w.toLowerCase())).size / words.length;
   const diversityScore = Math.min(0.4, uniqueRatio * 0.5);
@@ -123,29 +125,40 @@ async function runBenchmark(): Promise<void> {
     log.info(`\n--- ${name.toUpperCase()} QUERIES (${queries.length}) ---`);
 
     for (const q of queries) {
-      const start = performance.now();
       try {
-        const response = await router.query(q);
-        const latencyMs = performance.now() - start;
+        const qr = await router.queryDetailed(q);
         const result: BenchmarkResult = {
           query: q.slice(0, 80),
           category: name,
-          latencyMs: Math.round(latencyMs),
-          responseLength: response.split(/\s+/).length,
-          coherenceScore: estimateCoherence(response),
+          tier: qr.tier,
+          escalated: qr.escalated,
+          escalationPath: qr.escalationPath,
+          confidence: +qr.confidence.toFixed(3),
+          latencyMs: Math.round(qr.latencyMs),
+          responseLength: qr.text.split(/\s+/).length,
+          coherenceScore: estimateCoherence(qr.text),
           success: true,
         };
         results.push(result);
         log.info(
-          { latency: result.latencyMs, tokens: result.responseLength, coherence: result.coherenceScore.toFixed(2) },
+          {
+            tier: result.tier,
+            escalated: result.escalated,
+            confidence: result.confidence,
+            latency: result.latencyMs,
+            tokens: result.responseLength,
+          },
           `[${name}] ${q.slice(0, 50)}...`
         );
       } catch (err) {
-        const latencyMs = performance.now() - start;
         results.push({
           query: q.slice(0, 80),
           category: name,
-          latencyMs: Math.round(latencyMs),
+          tier: 0 as any,
+          escalated: false,
+          escalationPath: [],
+          confidence: 0,
+          latencyMs: 0,
           responseLength: 0,
           coherenceScore: 0,
           success: false,
@@ -162,12 +175,21 @@ async function runBenchmark(): Promise<void> {
     totalQueries: results.length,
     successful: results.filter(r => r.success).length,
     failed: results.filter(r => !r.success).length,
+    escalations: results.filter(r => r.escalated).length,
+    tierDistribution: {
+      tier1: results.filter(r => r.tier === 1).length,
+      tier2: results.filter(r => r.tier === 2).length,
+      tier3: results.filter(r => r.tier === 3).length,
+    },
     byCategory: {} as Record<string, {
       count: number;
       avgLatencyMs: number;
       avgTokens: number;
       avgCoherence: number;
+      avgConfidence: number;
       successRate: number;
+      escalationRate: number;
+      tierBreakdown: { tier1: number; tier2: number; tier3: number };
     }>,
     results,
   };
@@ -180,7 +202,14 @@ async function runBenchmark(): Promise<void> {
       avgLatencyMs: Math.round(successful.reduce((s, r) => s + r.latencyMs, 0) / (successful.length || 1)),
       avgTokens: Math.round(successful.reduce((s, r) => s + r.responseLength, 0) / (successful.length || 1)),
       avgCoherence: +(successful.reduce((s, r) => s + r.coherenceScore, 0) / (successful.length || 1)).toFixed(3),
+      avgConfidence: +(successful.reduce((s, r) => s + r.confidence, 0) / (successful.length || 1)).toFixed(3),
       successRate: +(successful.length / (catResults.length || 1)).toFixed(3),
+      escalationRate: +(catResults.filter(r => r.escalated).length / (catResults.length || 1)).toFixed(3),
+      tierBreakdown: {
+        tier1: catResults.filter(r => r.tier === 1).length,
+        tier2: catResults.filter(r => r.tier === 2).length,
+        tier3: catResults.filter(r => r.tier === 3).length,
+      },
     };
   }
 
@@ -192,6 +221,7 @@ async function runBenchmark(): Promise<void> {
   // Console summary
   console.log('\n=== BENCHMARK SUMMARY ===');
   console.log(`Total: ${summary.totalQueries} | Pass: ${summary.successful} | Fail: ${summary.failed}`);
+  console.log(`Escalations: ${summary.escalations} | Tier1: ${summary.tierDistribution.tier1} | Tier2: ${summary.tierDistribution.tier2} | Tier3: ${summary.tierDistribution.tier3}`);
   console.table(summary.byCategory);
   console.log(`Results saved to logs/benchmark/${filename}`);
 }

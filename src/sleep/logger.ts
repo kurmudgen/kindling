@@ -1,4 +1,5 @@
-import { appendFileSync, mkdirSync, existsSync } from 'node:fs';
+import { appendFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
@@ -36,17 +37,21 @@ export function hashPrompt(prompt: string): string {
 }
 
 export function logEscalation(event: Omit<EscalationEvent, 'timestamp' | 'sessionId'>): void {
-  if (!existsSync(LOG_DIR)) {
-    mkdirSync(LOG_DIR, { recursive: true });
-  }
-
   const fullEvent: EscalationEvent = {
     timestamp: new Date().toISOString(),
     sessionId,
     ...event,
   };
 
-  appendFileSync(LOG_FILE, JSON.stringify(fullEvent) + '\n', 'utf-8');
+  // Fire-and-forget async write — don't block the hot path
+  (async () => {
+    if (!existsSync(LOG_DIR)) {
+      await mkdir(LOG_DIR, { recursive: true });
+    }
+    await appendFile(LOG_FILE, JSON.stringify(fullEvent) + '\n', 'utf-8');
+  })().catch(() => {
+    // Swallow write errors — logging should never crash the runtime
+  });
 }
 
 export function getLogFilePath(): string {

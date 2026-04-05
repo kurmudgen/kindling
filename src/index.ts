@@ -62,10 +62,11 @@ async function main(): Promise<void> {
     analyst?.recordActivity();
 
     try {
-      const response = await router.query(prompt, context);
-      console.log(`\n${response}\n`);
+      const result = await router.queryDetailed(prompt, context);
+      const tierLabel = `[Tier ${result.tier}${result.escalated ? ' (escalated)' : ''}]`;
+      console.log(`\n${tierLabel} ${result.text}\n`);
       context.push(`User: ${prompt}`);
-      context.push(`Assistant: ${response}`);
+      context.push(`Assistant: ${result.text}`);
       // Keep context window manageable
       if (context.length > 20) {
         context.splice(0, 2);

@@ -22,6 +22,8 @@ export interface KindlingConfig {
   tier3: {
     model: string;
     apiOnly: boolean;
+    localModel?: string;
+    keepAlive?: string;
   };
   buffer: {
     size: number;

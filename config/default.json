@@ -13,7 +13,9 @@
   },
   "tier3": {
     "model": "claude-sonnet-4-6",
-    "apiOnly": true
+    "apiOnly": false,
+    "localModel": "qwen2.5:32b",
+    "keepAlive": "5m"
   },
   "buffer": {
     "size": 4
@@ -23,8 +25,8 @@
     "semanticVelocityWeight": 0.25,
     "surpriseScoreWeight": 0.25,
     "attentionAnomalyWeight": 0.15,
-    "escalationThreshold": 0.65,
-    "deescalationThreshold": 0.35,
+    "escalationThreshold": 0.28,
+    "deescalationThreshold": 0.15,
     "deescalationTokenWindow": 8
   },
   "sleep": {

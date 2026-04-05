@@ -30,7 +30,7 @@ Query → Valence Scorer → Tier 1 (always hot)
 
 **Tier 2 (Medium)** — Larger Ollama model (default: gemma2:27b) with API fallback to Claude Haiku. Activates when Tier 1 confidence drops. Takes over from the buffer position, not from scratch.
 
-**Tier 3 (Deep)** — Anthropic API (Claude Sonnet). Reserved for high-complexity, high-stakes queries. Phase 2 will replace this with local NVMe-streamed inference.
+**Tier 3 (Deep)** — Local large model via Ollama NVMe streaming (default: qwen2.5:32b), with Anthropic API fallback. Reserved for high-complexity, high-stakes queries. Gracefully degrades: GPU VRAM → RAM mmap → disk streaming.
 
 **Confidence Router** — Aggregates weighted escalation signals per token, makes escalate/de-escalate decisions against configurable thresholds.
 
@@ -79,8 +79,8 @@ Kindling uses BYOK for all API calls — you supply your own Anthropic API key, 
 | Phase | Status | Description |
 |-------|--------|-------------|
 | Phase 1 | **Complete** | Core runtime, API stand-in for Tier 3, sleep stage learning |
-| Phase 2 | Planned | Local Tier 3 layer streaming from NVMe, GPU staging buffer |
-| Phase 3 | Planned | Sleep state soft weight updates, cold concept warming |
+| Phase 2 | **Complete** | Logprob-based escalation, local Tier 3 NVMe streaming, cold concept warming |
+| Phase 3 | Planned | Sleep state soft weight updates, streaming per-token routing |
 | Phase 4 | Planned | Meta-confidence model, full benchmark suite |
 | Phase 5 | Planned | Open swarm prototype |
 

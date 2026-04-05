@@ -1,6 +1,12 @@
 import { Ollama } from 'ollama';
 import Anthropic from '@anthropic-ai/sdk';
 import { getConfig, getOllamaHost } from '../config/config.js';
+import {
+  computeSignalsFromLogprobs,
+  computeSignalsFromHeuristics,
+  computeConfidence,
+} from './signals.js';
+import type { TokenLogprobData } from './signals.js';
 import type { Tier, TierQuery, TierResponse, EscalationSignals } from './tier-interface.js';
 
 export class Tier2 implements Tier {
@@ -23,13 +29,7 @@ export class Tier2 implements Tier {
   }
 
   async isAvailable(): Promise<boolean> {
-    try {
-      const models = await this.ollamaClient.list();
-      const hasModel = models.models.some(m => m.name === this.model || m.name.startsWith(this.model + '-'));
-      if (hasModel) return true;
-    } catch {
-      // Ollama not available
-    }
+    if (await this.isOllamaModelAvailable()) return true;
     return this.apiFallback && this.anthropicClient !== null;
   }
 
@@ -47,23 +47,21 @@ export class Tier2 implements Tier {
   }
 
   async generate(query: TierQuery): Promise<TierResponse> {
-    const ollamaAvailable = await this.isOllamaModelAvailable();
-
-    if (ollamaAvailable) {
+    if (await this.isOllamaModelAvailable()) {
       return this.generateOllama(query);
     }
-
     if (this.anthropicClient) {
       return this.generateAPI(query);
     }
-
     throw new Error('Tier 2: No backend available (Ollama model missing, no API key)');
   }
 
   private async isOllamaModelAvailable(): Promise<boolean> {
     try {
       const models = await this.ollamaClient.list();
-      return models.models.some(m => m.name === this.model || m.name.startsWith(this.model + '-'));
+      return models.models.some(m =>
+        m.name === this.model || m.name.startsWith(this.model + '-')
+      );
     } catch {
       return false;
     }
@@ -83,12 +81,34 @@ export class Tier2 implements Tier {
         num_predict: query.maxTokens,
         num_thread: getConfig().tier2.maxCores,
       },
+      logprobs: true,
+      top_logprobs: 5,
     });
 
     const latencyMs = performance.now() - start;
     const tokens = response.response.split(/\s+/).filter(Boolean);
-    const escalationSignals = this.estimateSignals(tokens, response);
-    const confidence = this.computeConfidence(escalationSignals);
+
+    let escalationSignals;
+    if (response.logprobs && response.logprobs.length > 0) {
+      const logprobData: TokenLogprobData[] = response.logprobs.map(lp => ({
+        token: lp.token,
+        logprob: lp.logprob,
+        topLogprobs: lp.top_logprobs?.map(t => ({
+          token: t.token,
+          logprob: t.logprob,
+        })),
+      }));
+      escalationSignals = computeSignalsFromLogprobs(logprobData, tokens);
+    } else {
+      escalationSignals = computeSignalsFromHeuristics(
+        tokens,
+        response.eval_count,
+        response.eval_duration,
+        15 // expected TPS for medium model
+      );
+    }
+
+    const confidence = computeConfidence(escalationSignals);
 
     return {
       tokens,
@@ -96,7 +116,11 @@ export class Tier2 implements Tier {
       tier: 2,
       escalationSignals,
       latencyMs,
-      metadata: { source: 'ollama', model: this.model },
+      metadata: {
+        source: 'ollama',
+        model: this.model,
+        hasLogprobs: !!(response.logprobs && response.logprobs.length > 0),
+      },
     };
   }
 
@@ -123,13 +147,14 @@ export class Tier2 implements Tier {
       .join('');
     const tokens = text.split(/\s+/).filter(Boolean);
 
+    // API tiers don't expose logprobs — use conservative heuristic signals
     const escalationSignals: EscalationSignals = {
-      tokenProbabilitySpread: 0.1, // API models generally confident
-      semanticVelocity: this.estimateSemanticVelocity(tokens),
+      tokenProbabilitySpread: 0.1,
+      semanticVelocity: 0.1,
       surpriseScore: 0.05,
       attentionAnomalyScore: 0,
     };
-    const confidence = this.computeConfidence(escalationSignals);
+    const confidence = computeConfidence(escalationSignals);
 
     return {
       tokens,
@@ -144,48 +169,5 @@ export class Tier2 implements Tier {
         outputTokens: response.usage.output_tokens,
       },
     };
-  }
-
-  private estimateSignals(
-    tokens: string[],
-    response: { eval_count?: number; eval_duration?: number }
-  ): EscalationSignals {
-    const evalCount = response.eval_count ?? tokens.length;
-    const evalDuration = response.eval_duration ?? 1;
-    const tps = evalCount / (evalDuration / 1e9);
-    const expectedTps = 15; // medium model is slower
-    const speedRatio = tps / expectedTps;
-
-    return {
-      tokenProbabilitySpread: Math.max(0, Math.min(1, 1 - speedRatio * 0.5)),
-      semanticVelocity: this.estimateSemanticVelocity(tokens),
-      surpriseScore: 0.1,
-      attentionAnomalyScore: this.computeRepetitionRate(tokens),
-    };
-  }
-
-  private estimateSemanticVelocity(tokens: string[]): number {
-    if (tokens.length === 0) return 0;
-    const unique = new Set(tokens.map(t => t.toLowerCase()));
-    return unique.size / tokens.length;
-  }
-
-  private computeRepetitionRate(tokens: string[]): number {
-    if (tokens.length < 4) return 0;
-    let reps = 0;
-    for (let i = 2; i < tokens.length; i++) {
-      if (tokens[i] === tokens[i - 2]) reps++;
-    }
-    return reps / (tokens.length - 2);
-  }
-
-  private computeConfidence(signals: EscalationSignals): number {
-    const config = getConfig().escalation;
-    const weighted =
-      signals.tokenProbabilitySpread * config.tokenProbabilitySpreadWeight +
-      signals.semanticVelocity * config.semanticVelocityWeight +
-      signals.surpriseScore * config.surpriseScoreWeight +
-      signals.attentionAnomalyScore * config.attentionAnomalyWeight;
-    return Math.max(0, Math.min(1, 1 - weighted));
   }
 }

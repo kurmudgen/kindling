@@ -1,6 +1,12 @@
 import { Ollama } from 'ollama';
 import { getConfig, getOllamaHost } from '../config/config.js';
-import type { Tier, TierQuery, TierResponse, EscalationSignals } from './tier-interface.js';
+import {
+  computeSignalsFromLogprobs,
+  computeSignalsFromHeuristics,
+  computeConfidence,
+} from './signals.js';
+import type { TokenLogprobData } from './signals.js';
+import type { Tier, TierQuery, TierResponse } from './tier-interface.js';
 
 export class Tier1 implements Tier {
   readonly id = 1 as const;
@@ -26,7 +32,6 @@ export class Tier1 implements Tier {
     if (!(await this.isAvailable())) {
       throw new Error(`Ollama not available at ${getOllamaHost()}. Is Ollama running?`);
     }
-    // Load model into memory
     try {
       await this.client.generate({ model: this.model, prompt: '', keep_alive: '10m' });
     } catch {
@@ -51,12 +56,35 @@ export class Tier1 implements Tier {
         num_predict: query.maxTokens,
         num_thread: getConfig().tier1.maxCores,
       },
+      logprobs: true,
+      top_logprobs: 5,
     });
 
     const latencyMs = performance.now() - start;
     const tokens = response.response.split(/\s+/).filter(Boolean);
-    const escalationSignals = this.estimateEscalationSignals(response, tokens);
-    const confidence = this.computeConfidence(escalationSignals);
+
+    // Use real logprobs if available, fall back to heuristics
+    let escalationSignals;
+    if (response.logprobs && response.logprobs.length > 0) {
+      const logprobData: TokenLogprobData[] = response.logprobs.map(lp => ({
+        token: lp.token,
+        logprob: lp.logprob,
+        topLogprobs: lp.top_logprobs?.map(t => ({
+          token: t.token,
+          logprob: t.logprob,
+        })),
+      }));
+      escalationSignals = computeSignalsFromLogprobs(logprobData, tokens);
+    } else {
+      escalationSignals = computeSignalsFromHeuristics(
+        tokens,
+        response.eval_count,
+        response.eval_duration,
+        30 // expected TPS for small model
+      );
+    }
+
+    const confidence = computeConfidence(escalationSignals);
 
     return {
       tokens,
@@ -64,62 +92,12 @@ export class Tier1 implements Tier {
       tier: 1,
       escalationSignals,
       latencyMs,
+      metadata: {
+        source: 'ollama',
+        model: this.model,
+        hasLogprobs: !!(response.logprobs && response.logprobs.length > 0),
+        logprobCount: response.logprobs?.length ?? 0,
+      },
     };
-  }
-
-  private estimateEscalationSignals(
-    response: { eval_count?: number; eval_duration?: number; total_duration?: number },
-    tokens: string[]
-  ): EscalationSignals {
-    // Without direct logprobs from Ollama, we estimate signals from available metadata
-    const evalCount = response.eval_count ?? tokens.length;
-    const evalDuration = response.eval_duration ?? 1;
-    const tokensPerSecond = evalCount / (evalDuration / 1e9);
-
-    // Token probability spread: estimate from generation speed
-    // Slower generation can indicate more uncertainty (more sampling retries)
-    const expectedTps = 30; // baseline for small model
-    const speedRatio = tokensPerSecond / expectedTps;
-    const tokenProbabilitySpread = Math.max(0, Math.min(1, 1 - speedRatio * 0.5));
-
-    // Semantic velocity: measure vocabulary diversity as a proxy
-    const uniqueTokens = new Set(tokens.map(t => t.toLowerCase()));
-    const semanticVelocity = tokens.length > 0 ? uniqueTokens.size / tokens.length : 0;
-
-    // Surprise score: estimate from response length vs expected
-    const lengthRatio = tokens.length / Math.max(1, (response.eval_count ?? tokens.length));
-    const surpriseScore = Math.abs(1 - lengthRatio);
-
-    // Attention anomaly: high repetition suggests attention issues
-    const repetitionRate = this.computeRepetitionRate(tokens);
-    const attentionAnomalyScore = repetitionRate;
-
-    return {
-      tokenProbabilitySpread,
-      semanticVelocity,
-      surpriseScore,
-      attentionAnomalyScore,
-    };
-  }
-
-  private computeRepetitionRate(tokens: string[]): number {
-    if (tokens.length < 4) return 0;
-    let repetitions = 0;
-    for (let i = 2; i < tokens.length; i++) {
-      if (tokens[i] === tokens[i - 2]) repetitions++;
-    }
-    return repetitions / (tokens.length - 2);
-  }
-
-  private computeConfidence(signals: EscalationSignals): number {
-    const config = getConfig().escalation;
-    const weighted =
-      signals.tokenProbabilitySpread * config.tokenProbabilitySpreadWeight +
-      signals.semanticVelocity * config.semanticVelocityWeight +
-      signals.surpriseScore * config.surpriseScoreWeight +
-      signals.attentionAnomalyScore * config.attentionAnomalyWeight;
-
-    // Confidence is inverse of escalation signal strength
-    return Math.max(0, Math.min(1, 1 - weighted));
   }
 }
