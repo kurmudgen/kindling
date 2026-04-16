@@ -12,6 +12,7 @@ import { MetaConfidenceModel } from '../meta/meta-confidence.js';
 import { runWithRecovery, circuitBreaker } from '../recovery/recovery.js';
 import type { RecoveryEvent } from '../recovery/recovery.js';
 import { recordVcrEntry, isRecordingActive } from '../tools/vcr.js';
+import { ShadowEvaluator } from '../shadow/shadow.js';
 import type { Tier, TierQuery, TierResponse, ValenceScore } from '../tiers/tier-interface.js';
 
 const log = pino({ level: process.env.KINDLING_LOG_LEVEL ?? 'info' });
@@ -33,16 +34,29 @@ export class Router {
   private meta: MetaConfidenceModel;
   // concurrency guard tracks in-flight queries
   private guard: ConcurrencyGuard;
+  // shadow evaluator — API ground-truth teacher (Phase 4)
+  private shadow: ShadowEvaluator;
   private initialized = false;
 
   constructor() {
     this.meta = new MetaConfidenceModel();
     this.guard = new ConcurrencyGuard();
+    this.shadow = new ShadowEvaluator();
   }
 
   /** Get current in-flight query count (for diagnostics) */
   inFlightCount(): number {
     return this.guard.inFlightCount();
+  }
+
+  /** Get shadow evaluator stats (for diagnostics / REPL display) */
+  getShadowStats() {
+    return this.shadow.getStats();
+  }
+
+  /** Get the shadow evaluator instance (for dream task direct shadow) */
+  getShadowEvaluator(): ShadowEvaluator {
+    return this.shadow;
   }
 
   async init(): Promise<void> {
@@ -252,6 +266,22 @@ export class Router {
         recoveryEventCount: recoveryEvents.length,
       });
     }
+
+    // Shadow evaluation — API ground-truth comparison (Phase 4)
+    // Fire-and-forget: raw prompt held in memory only for the API call,
+    // never persisted to disk. Training store records hash only.
+    this.shadow.maybeShadow({
+      prompt,
+      context,
+      signals: response.escalationSignals,
+      valence,
+      tierUsed: startTier,
+      routerDecision: escalated ? 'escalate' : 'stay',
+      metaAction,
+      localTokenCount: response.tokens.length,
+      localCoherence: coherence,
+      localLatencyMs: totalLatencyMs,
+    });
 
     return {
       text,

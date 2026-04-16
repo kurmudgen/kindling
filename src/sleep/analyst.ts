@@ -9,6 +9,8 @@ import { getLogFilePath, getSessionId } from './logger.js';
 import type { EscalationEvent } from './logger.js';
 import { ConceptPrewarmer } from './prewarmer.js';
 import { compactLog } from './compactor.js';
+import { loadRecentExamples } from '../shadow/training-store.js';
+import type { TrainingExample } from '../shadow/training-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -68,7 +70,15 @@ CRITICAL:
 - Keep each field concise: max 6 items per array, max 2 sentences per "reason" field.
 - The entire JSON response must fit in under 4000 tokens.
 
-You may also receive outputs from previous sleep analysis sessions. Build on what was learned before. Do not repeat recommendations already made. If previous recommendations appear to have improved routing accuracy, note that. If they appear not to have helped, suggest alternatives.`;
+You may also receive outputs from previous sleep analysis sessions. Build on what was learned before. Do not repeat recommendations already made. If previous recommendations appear to have improved routing accuracy, note that. If they appear not to have helped, suggest alternatives.
+
+You may also receive SHADOW EVALUATION DATA — ground-truth comparisons where the same query was sent to both a local tier and the API. Each shadow record includes:
+- signals/valence at decision time
+- localCoherence vs apiCoherence (quality comparison)
+- qualityDelta (api - local, positive = API was better)
+- escalationNeeded (true = local tier was insufficient for this query)
+
+Shadow data is the strongest signal for adjusting routing weights. If shadow data shows that queries with certain signal profiles consistently have escalationNeeded=false, the corresponding signal weights should be REDUCED (they cause false escalations). If escalationNeeded=true correlates with high values of a specific signal, that signal weight is correctly calibrated or should be increased.`;
 
 export interface DreamTaskEvent {
   timestamp: string;
@@ -272,6 +282,17 @@ export class SleepAnalyst {
       currentWeights: config.escalation,
     };
 
+    // Load shadow evaluation data — ground-truth API comparisons (Phase 4)
+    const shadowExamples = await loadRecentExamples(50);
+    if (shadowExamples.length > 0) {
+      const shadowSummary = this.summarizeShadowData(shadowExamples);
+      (payload as Record<string, unknown>).shadowGroundTruth = shadowSummary;
+      log.info(
+        { examples: shadowExamples.length, ...shadowSummary.stats },
+        'Included shadow ground-truth data in analyst payload'
+      );
+    }
+
     // Load prior session context for longitudinal awareness
     const priorSessions = this.loadPriorSessions(3);
     let userContent = `Analyze this compacted escalation session and respond with JSON only:\n\n${JSON.stringify(payload, null, 2)}`;
@@ -418,6 +439,62 @@ export class SleepAnalyst {
     }
 
     writeFileSync(learnedPath, JSON.stringify(store, null, 2), 'utf-8');
+  }
+
+  /**
+   * Summarize shadow training examples into a compact payload for the analyst API call.
+   * Avoids sending raw examples (too many tokens) — computes aggregate stats instead.
+   */
+  private summarizeShadowData(examples: TrainingExample[]): {
+    stats: {
+      totalExamples: number;
+      escalationNeededRate: number;
+      avgQualityDelta: number;
+      avgLocalCoherence: number;
+      avgApiCoherence: number;
+    };
+    signalCorrelations: Record<string, { avgWhenNeeded: number; avgWhenNotNeeded: number }>;
+    tierBreakdown: Record<number, { count: number; neededRate: number }>;
+  } {
+    const needed = examples.filter(e => e.escalationNeeded);
+    const notNeeded = examples.filter(e => !e.escalationNeeded);
+
+    const stats = {
+      totalExamples: examples.length,
+      escalationNeededRate: needed.length / examples.length,
+      avgQualityDelta: examples.reduce((s, e) => s + e.qualityDelta, 0) / examples.length,
+      avgLocalCoherence: examples.reduce((s, e) => s + e.localCoherence, 0) / examples.length,
+      avgApiCoherence: examples.reduce((s, e) => s + e.apiCoherence, 0) / examples.length,
+    };
+
+    // Per-signal averages split by escalationNeeded label
+    const signals = ['tokenProbabilitySpread', 'semanticVelocity', 'surpriseScore', 'attentionAnomalyScore'] as const;
+    const signalCorrelations: Record<string, { avgWhenNeeded: number; avgWhenNotNeeded: number }> = {};
+
+    for (const sig of signals) {
+      signalCorrelations[sig] = {
+        avgWhenNeeded: needed.length > 0
+          ? needed.reduce((s, e) => s + e.signals[sig], 0) / needed.length
+          : 0,
+        avgWhenNotNeeded: notNeeded.length > 0
+          ? notNeeded.reduce((s, e) => s + e.signals[sig], 0) / notNeeded.length
+          : 0,
+      };
+    }
+
+    // Per-tier breakdown
+    const tierBreakdown: Record<number, { count: number; neededRate: number }> = {};
+    for (const tier of [1, 2, 3]) {
+      const tierExamples = examples.filter(e => e.tierUsed === tier);
+      if (tierExamples.length > 0) {
+        tierBreakdown[tier] = {
+          count: tierExamples.length,
+          neededRate: tierExamples.filter(e => e.escalationNeeded).length / tierExamples.length,
+        };
+      }
+    }
+
+    return { stats, signalCorrelations, tierBreakdown };
   }
 
   private signalToConfigKey(signal: string): string | null {

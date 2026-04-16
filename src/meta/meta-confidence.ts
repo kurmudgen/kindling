@@ -27,6 +27,8 @@ import { fileURLToPath } from 'node:url';
 import pino from 'pino';
 import type { EscalationSignals, ValenceScore } from '../tiers/tier-interface.js';
 import type { RoutingDecision } from '../router/confidence.js';
+import { MLClassifier } from './ml-classifier.js';
+import type { ClassifierPrediction } from './ml-classifier.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -77,9 +79,21 @@ export class MetaConfidenceModel {
   };
   private totalDecisions = 0;
   private totalInterventions = 0;
+  // Phase 4: ML classifier override — when loaded, replaces heuristic logic
+  private mlClassifier: MLClassifier;
+  private mlPredictions = 0;
+  private heuristicPredictions = 0;
 
   constructor() {
     this.loadHistory();
+    this.mlClassifier = new MLClassifier();
+    if (this.mlClassifier.isLoaded()) {
+      const info = this.mlClassifier.getModelInfo();
+      log.info(
+        { type: info?.type, accuracy: info?.accuracy },
+        'ML classifier active — will override heuristic meta-confidence'
+      );
+    }
   }
 
   /**
@@ -93,6 +107,18 @@ export class MetaConfidenceModel {
     currentTier: number
   ): MetaDecision {
     this.totalDecisions++;
+
+    // Phase 4: Try ML classifier first — if loaded, it overrides heuristics
+    if (this.mlClassifier.isLoaded()) {
+      const mlResult = this.mlClassifier.predict(signals, valence);
+      if (mlResult) {
+        this.mlPredictions++;
+        return this.applyMLPrediction(mlResult, routerDecision, signals, valence, currentTier);
+      }
+    }
+
+    // Fallback: heuristic meta-confidence (Phase 3 behavior)
+    this.heuristicPredictions++;
 
     // If we have insufficient history, confirm everything
     if (this.history.length < 5) {
@@ -147,12 +173,74 @@ export class MetaConfidenceModel {
     this.updateCorrections();
   }
 
-  getStats(): { totalDecisions: number; totalInterventions: number; corrections: Record<string, number> } {
+  getStats(): {
+    totalDecisions: number;
+    totalInterventions: number;
+    corrections: Record<string, number>;
+    mlActive: boolean;
+    mlPredictions: number;
+    heuristicPredictions: number;
+  } {
     return {
       totalDecisions: this.totalDecisions,
       totalInterventions: this.totalInterventions,
       corrections: { ...this.signalCorrections },
+      mlActive: this.mlClassifier.isLoaded(),
+      mlPredictions: this.mlPredictions,
+      heuristicPredictions: this.heuristicPredictions,
     };
+  }
+
+  /** Reload ML classifier from disk (e.g., after training) */
+  reloadMLClassifier(): boolean {
+    return this.mlClassifier.reload();
+  }
+
+  /**
+   * Convert ML classifier prediction into a MetaDecision.
+   *
+   * ML says "escalation needed" with a probability → we translate that
+   * into suppress/force/confirm relative to what the router decided.
+   */
+  private applyMLPrediction(
+    prediction: ClassifierPrediction,
+    routerDecision: RoutingDecision,
+    signals: EscalationSignals,
+    valence: ValenceScore,
+    currentTier: number
+  ): MetaDecision {
+    const routerWantsEscalation = routerDecision.shouldEscalate;
+    const mlWantsEscalation = prediction.escalationNeeded;
+
+    let decision: MetaDecision;
+
+    if (routerWantsEscalation && !mlWantsEscalation && prediction.confidence > 0.3) {
+      // Router says escalate, ML says don't need to → suppress
+      this.totalInterventions++;
+      decision = {
+        action: 'suppress',
+        reason: `ML classifier: escalation not needed (p=${prediction.probability.toFixed(2)}, confidence=${prediction.confidence.toFixed(2)})`,
+        correctionStrength: prediction.confidence,
+      };
+    } else if (!routerWantsEscalation && mlWantsEscalation && prediction.confidence > 0.3 && currentTier < 3) {
+      // Router says stay, ML says escalation needed → force
+      this.totalInterventions++;
+      decision = {
+        action: 'force',
+        reason: `ML classifier: escalation needed (p=${prediction.probability.toFixed(2)}, confidence=${prediction.confidence.toFixed(2)})`,
+        correctionStrength: prediction.confidence,
+      };
+    } else {
+      // ML agrees with router, or confidence too low to intervene
+      decision = {
+        action: 'confirm',
+        reason: `ML classifier confirms (p=${prediction.probability.toFixed(2)})`,
+        correctionStrength: 0,
+      };
+    }
+
+    this.logIntervention(decision, routerDecision, signals, valence, currentTier);
+    return decision;
   }
 
   /**

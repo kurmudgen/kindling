@@ -46,5 +46,12 @@
     "backoffBaseMs": 1000,
     "tierGenerationTimeoutMs": 120000,
     "circuitBreakerThreshold": 3
+  },
+  "shadow": {
+    "sampleRate": 5,
+    "apiModel": "claude-haiku-4-5-20251001",
+    "maxTokens": 1024,
+    "qualityThreshold": 0.15,
+    "maxConcurrent": 2
   }
 }

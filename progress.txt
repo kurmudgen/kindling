@@ -1,8 +1,9 @@
-KINDLING BUILD — Phase 3.5 Complete
-Last updated: 2026-04-05T01:30:00Z
+KINDLING BUILD — Phase 4 Core Complete
+Last updated: 2026-04-16T08:20:00Z
 Repo: https://github.com/kurmudgen/kindling
 
 PHASE 3.5 STATUS: COMPLETE — all 7 milestones PASS
+PHASE 4 STATUS: CORE COMPLETE — 6 milestones PASS, needs training data to activate ML
 
 ==========================================================================
 PHASE 3.5 SELF REVIEW — PRODUCTION HARDENING
@@ -170,11 +171,108 @@ Verification tools:
 - src/tools/test-concurrency.ts — parallel query integration
 
 ==========================================================================
-PHASE 4 START POINT
+PHASE 4 — SHADOW MODE + ML META-CONFIDENCE
 ==========================================================================
 
-- Meta-confidence model upgrade to lightweight ML (sklearn or ONNX)
-- Shadow mode — watch Claude API responses as ground truth teacher
-- Full benchmark suite expansion with Phase 3.5 metrics
+STATUS: CORE INFRASTRUCTURE COMPLETE — needs training data to activate
+
+MILESTONE 1 — SHADOW EVALUATOR: PASS
+  src/shadow/shadow.ts — ShadowEvaluator class
+  - Real-time mode: every Nth query, fire-and-forget API comparison
+  - Dream mode: shadowDirect() for batch replay during idle
+  - Configurable: sampleRate, apiModel, qualityThreshold, maxConcurrent
+  - KINDLING_SHADOW=false env var to disable
+  - Raw prompt held in memory only during API call, never persisted
+  - Concurrency-limited (default 2 concurrent shadows)
+
+  Verified: 6/6 offline + live tests pass (test-shadow.ts --live)
+
+MILESTONE 2 — TRAINING DATA STORE: PASS
+  src/shadow/training-store.ts — structured JSONL storage
+  - Each record: signals, valence, tier, local quality, API quality,
+    escalationNeeded label, qualityDelta
+  - Serialized write queue (same pattern as logger.ts)
+  - loadTrainingExamples(), loadRecentExamples(N), getTrainingStats()
+  - Storage: logs/shadow/training.jsonl
+
+MILESTONE 3 — ROUTER INTEGRATION: PASS
+  - Shadow evaluator wired into router.ts queryInternal()
+  - Fires after response generated, before return to user
+  - Non-blocking: user gets immediate response
+  - Shadow config added to all 3 hardware profiles:
+    default (rate=5), ddr4-budget (rate=8), prosumer (rate=3)
+
+MILESTONE 4 — DREAM CONSOLIDATION: PASS
+  - analyst.ts loads recent shadow examples during dream tasks
+  - Summarizes into aggregate stats: escalation rate, quality delta,
+    per-signal correlations, per-tier breakdown
+  - System prompt updated: analyst now knows about shadow ground truth
+  - Shadow data is the strongest signal for weight recommendations
+
+MILESTONE 5 — ML CLASSIFIER INFERENCE: PASS
+  src/meta/ml-classifier.ts — pure CPU math inference
+  - Logistic regression: dot product + sigmoid (10 features → binary)
+  - Gradient-boosted tree: recursive tree traversal
+  - Zero ML dependencies — no onnxruntime, no tensorflow
+  - Model loaded from models/meta-classifier.json at startup
+  - Hot reload via meta.reloadMLClassifier()
+  - MetaConfidenceModel tries ML first, falls back to heuristics
+
+  Verified: 7/7 tests pass (test-ml-classifier.ts)
+  - Trivial query: p=0.072 (correctly no escalation)
+  - Complex query: p=0.961 (correctly needs escalation)
+  - Manual math verification: exact match
+
+MILESTONE 6 — PYTHON TRAINING PIPELINE: COMPLETE
+  scripts/train-classifier.py
+  - Reads logs/shadow/training.jsonl
+  - Trains logistic regression (sklearn) or XGBoost (GPU kickstart)
+  - Exports weights to models/meta-classifier.json
+  - Feature extraction mirrors TypeScript exactly (10 features)
+  - XGBoost supports --gpu flag for CUDA training
+  - Cross-validation accuracy reported
+
+  Usage:
+    python scripts/train-classifier.py                     # logreg
+    python scripts/train-classifier.py --model xgboost     # trees
+    python scripts/train-classifier.py --model xgboost --gpu  # GPU
+
+==========================================================================
+PHASE 4 TOOLS ADDED
+==========================================================================
+
+Production code:
+- src/shadow/shadow.ts — ShadowEvaluator (API ground-truth teacher)
+- src/shadow/training-store.ts — labeled training data JSONL store
+- src/meta/ml-classifier.ts — pure CPU ML inference (logreg + GBT)
+- scripts/train-classifier.py — Python training pipeline (sklearn/XGBoost)
+
+Verification tools:
+- src/tools/test-shadow.ts — shadow eval + training store tests (6 tests)
+- src/tools/test-ml-classifier.ts — classifier inference tests (7 tests)
+
+Config updates:
+- config/default.json — added shadow section
+- config/ddr4-budget.json — added shadow section
+- config/prosumer.json — added shadow section
+
+==========================================================================
+PHASE 4 ACTIVATION FLOW
+==========================================================================
+
+1. Run Kindling with shadow enabled (default: every 5th query)
+2. Accumulate 20+ training examples in logs/shadow/training.jsonl
+3. Run: python scripts/train-classifier.py
+4. Model auto-loads at next startup (or hot-reload during runtime)
+5. Meta-confidence now uses ML instead of heuristics
+6. Dream tasks continue refining with shadow ground truth
+
+==========================================================================
+PHASE 5 START POINT
+==========================================================================
+
+- Per-token streaming routing (speculative buffer is built, unused)
+- Full benchmark suite expansion with Phase 4 metrics
 - README update with all phase results
-- Begin swarm prototype planning
+- Swarm prototype planning
+- Continuous retraining loop (dream triggers retrain when enough new data)

@@ -55,6 +55,13 @@ export interface KindlingConfig {
     tierGenerationTimeoutMs: number;
     circuitBreakerThreshold: number;
   };
+  shadow?: {
+    sampleRate: number;
+    apiModel: string;
+    maxTokens: number;
+    qualityThreshold: number;
+    maxConcurrent: number;
+  };
 }
 
 /**
