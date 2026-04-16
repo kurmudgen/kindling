@@ -1,5 +1,5 @@
-KINDLING BUILD — Phase 4 Core Complete
-Last updated: 2026-04-16T08:20:00Z
+KINDLING BUILD — Phase 4 FULLY ACTIVATED
+Last updated: 2026-04-16T18:00:00Z
 Repo: https://github.com/kurmudgen/kindling
 
 PHASE 3.5 STATUS: COMPLETE — all 7 milestones PASS
@@ -174,7 +174,7 @@ Verification tools:
 PHASE 4 — SHADOW MODE + ML META-CONFIDENCE
 ==========================================================================
 
-STATUS: CORE INFRASTRUCTURE COMPLETE — needs training data to activate
+STATUS: FULLY ACTIVATED — ML classifier trained and live in meta-confidence model
 
 MILESTONE 1 — SHADOW EVALUATOR: PASS
   src/shadow/shadow.ts — ShadowEvaluator class
@@ -223,19 +223,29 @@ MILESTONE 5 — ML CLASSIFIER INFERENCE: PASS
   - Complex query: p=0.961 (correctly needs escalation)
   - Manual math verification: exact match
 
-MILESTONE 6 — PYTHON TRAINING PIPELINE: COMPLETE
+MILESTONE 6 — PYTHON TRAINING PIPELINE: COMPLETE + FIRST MODEL TRAINED
   scripts/train-classifier.py
   - Reads logs/shadow/training.jsonl
   - Trains logistic regression (sklearn) or XGBoost (GPU kickstart)
   - Exports weights to models/meta-classifier.json
   - Feature extraction mirrors TypeScript exactly (10 features)
   - XGBoost supports --gpu flag for CUDA training
-  - Cross-validation accuracy reported
+  - class_weight='balanced' handles 70/30 class imbalance
+  - F1 cross-validation alongside accuracy for imbalanced data
+
+  FIRST REAL MODEL: models/meta-classifier.json (commit 53c8a39)
+  - 54 training examples (16 escalation-needed, 38 not-needed)
+  - CV accuracy: 88.9%, F1: 70.5%
+  - Top features: surpriseXstakes (+112), attentionAnomalyScore (+19)
+  - escalationNeeded label: qualityDelta > 0.05 OR tierUsed > 1
 
   Usage:
     python scripts/train-classifier.py                     # logreg
     python scripts/train-classifier.py --model xgboost     # trees
     python scripts/train-classifier.py --model xgboost --gpu  # GPU
+
+  Data collection tool: src/tools/collect-training-data.ts
+    Runs hard+mixed queries only to efficiently build positive-class examples
 
 ==========================================================================
 PHASE 4 TOOLS ADDED
