@@ -125,14 +125,22 @@ def train_logistic_regression(X: np.ndarray, y: np.ndarray) -> dict:
         C=1.0,
         max_iter=1000,
         solver="lbfgs",
+        class_weight="balanced",  # handle class imbalance (most queries don't need escalation)
         random_state=42,
     )
 
-    # Cross-validation
-    if len(X) >= 10:
+    # Cross-validation — use F1 for imbalanced data (accuracy misleads when 90% negative class)
+    if len(X) >= 10 and len(set(y)) > 1:
         k = min(5, len(X) // 2)
-        scores = cross_val_score(model, X_scaled, y, cv=k, scoring="accuracy")
-        print(f"  Cross-validation accuracy ({k}-fold): {scores.mean():.3f} +/- {scores.std():.3f}")
+        acc_scores = cross_val_score(model, X_scaled, y, cv=k, scoring="accuracy")
+        f1_scores = cross_val_score(model, X_scaled, y, cv=k, scoring="f1")
+        print(f"  Cross-validation accuracy ({k}-fold): {acc_scores.mean():.3f} +/- {acc_scores.std():.3f}")
+        print(f"  Cross-validation F1 ({k}-fold): {f1_scores.mean():.3f} +/- {f1_scores.std():.3f}")
+        scores = acc_scores
+    elif len(set(y)) == 1:
+        scores = np.array([0.0])
+        print(f"  WARNING: Only one class in training data (all {'positive' if y[0] else 'negative'})")
+        print("  Classifier will be degenerate — accumulate more examples with both classes")
     else:
         scores = np.array([0.0])
         print("  Too few examples for cross-validation")

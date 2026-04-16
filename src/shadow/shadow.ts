@@ -156,7 +156,12 @@ export class ShadowEvaluator {
       const apiCoherence = this.estimateCoherence(apiText);
 
       const qualityDelta = apiCoherence - pending.localCoherence;
-      const escalationNeeded = qualityDelta > this.config.qualityThreshold;
+      // Two conditions for "escalation was needed":
+      // 1. API was meaningfully better than local (API teacher says local was insufficient)
+      // 2. Router already escalated to a higher tier (ground truth: query needed escalation)
+      const escalationNeeded =
+        qualityDelta > this.config.qualityThreshold ||
+        pending.tierUsed > 1;
 
       recordTrainingExample({
         timestamp: new Date().toISOString(),

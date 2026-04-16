@@ -2,8 +2,9 @@
   "profile": "default",
   "tier1": {
     "model": "qwen2.5:1.5b",
-    "fallbackModel": "qwen2.5:0.5b",
+    "fallbackModel": "phi3:mini",
     "apiFallbackModel": "claude-haiku-4-5-20251001",
+    "apiFallback": true,
     "maxCores": 6,
     "quantization": "q4_0"
   },
@@ -44,14 +45,14 @@
   "recovery": {
     "maxRetries": 3,
     "backoffBaseMs": 1000,
-    "tierGenerationTimeoutMs": 120000,
+    "tierGenerationTimeoutMs": 30000,
     "circuitBreakerThreshold": 3
   },
   "shadow": {
     "sampleRate": 5,
     "apiModel": "claude-haiku-4-5-20251001",
     "maxTokens": 1024,
-    "qualityThreshold": 0.15,
+    "qualityThreshold": 0.05,
     "maxConcurrent": 2
   }
 }

@@ -1,0 +1,33 @@
+{
+  "type": "logistic_regression",
+  "version": 1,
+  "features": [
+    "tokenProbabilitySpread",
+    "semanticVelocity",
+    "surpriseScore",
+    "attentionAnomalyScore",
+    "valenceUrgency",
+    "valenceComplexity",
+    "valenceStakes",
+    "valenceComposite",
+    "spreadXcomplexity",
+    "surpriseXstakes"
+  ],
+  "weights": [
+    1.1141746848247627,
+    2.811997564732474,
+    14.909986410143201,
+    19.01346354336423,
+    5.532988196289872,
+    4.253513165414533,
+    -0.14368791713157392,
+    4.177331239756098,
+    -15.237113668954681,
+    112.00088719093952
+  ],
+  "intercept": -4.049928382094133,
+  "threshold": 0.5,
+  "trainedAt": "2026-04-16T17:46:43.950058Z",
+  "trainingExamples": 54,
+  "accuracy": 0.889090909090909
+}
