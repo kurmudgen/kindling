@@ -59,6 +59,11 @@ export class Router {
     return this.shadow;
   }
 
+  /** Hot-reload ML classifier from disk (e.g., after a training pass) */
+  reloadMLClassifier(): boolean {
+    return this.meta.reloadMLClassifier();
+  }
+
   async init(): Promise<void> {
     if (this.initialized) return;
 
@@ -109,8 +114,6 @@ export class Router {
 
     // Per-query state — no shared confidence or buffer
     const confidence = new ConfidenceAggregator();
-    const buffer = new SpeculativeBuffer();
-    void buffer; // buffer reserved for future per-token routing
 
     try {
       return await this.queryInternal(prompt, context, startTime, confidence, generation);
@@ -299,6 +302,215 @@ export class Router {
   async query(prompt: string, context: string[] = []): Promise<string> {
     const result = await this.queryDetailed(prompt, context);
     return result.text;
+  }
+
+  /**
+   * Streaming routing — yields tokens as they are generated.
+   *
+   * HOW IT WORKS:
+   * 1. Score valence. If high-valence (Tier 2+ start), fall back to batch queryDetailed
+   *    and yield the assembled text — no streaming benefit for pre-escalated queries.
+   * 2. For Tier 1 start: use Ollama streaming API to generate tokens one at a time.
+   * 3. Buffer the first N tokens (speculative window). After the buffer fills, evaluate
+   *    escalation signals from accumulated logprobs.
+   * 4. No escalation → flush buffer to caller, continue streaming Tier 1 tokens directly.
+   * 5. Escalation triggered → stop Tier 1 stream, run Tier 2/3 in batch, yield those tokens.
+   *
+   * The caller gets time-to-first-token equal to the speculative window (typically 16 tokens).
+   * If no escalation, Tier 1 tokens flow through with minimal additional latency.
+   * If escalation, the cost is: speculative window + higher tier generation time.
+   */
+  async *queryStream(prompt: string, context: string[] = []): AsyncGenerator<string> {
+    if (!this.initialized) await this.init();
+
+    const generation = this.guard.acquire();
+    const startTime = performance.now();
+
+    try {
+      yield* this.queryStreamInternal(prompt, context, startTime, generation);
+    } finally {
+      this.guard.release(generation);
+    }
+  }
+
+  private async *queryStreamInternal(
+    prompt: string,
+    context: string[],
+    startTime: number,
+    _generation: number
+  ): AsyncGenerator<string> {
+    const valence = scoreValence(prompt);
+    const startTier = this.determineStartTier(valence);
+
+    const tier1 = this.tiers.get(1) as import('../tiers/tier1.js').Tier1 | undefined;
+    const canStream = startTier === 1 && !!tier1?.generateStream;
+
+    // High-valence queries or no streaming support → batch path
+    if (!canStream) {
+      log.debug({ startTier }, 'queryStream: using batch path (high valence or no stream support)');
+      const result = await this.queryInternal(prompt, context, startTime, new ConfidenceAggregator(), _generation);
+      // Yield words with spacing to simulate token stream
+      const words = result.text.split(/(\s+)/);
+      for (const w of words) {
+        if (w) yield w;
+      }
+      return;
+    }
+
+    // ── Tier 1 streaming path ────────────────────────────────────────────────
+    const buffer = new SpeculativeBuffer();
+    const confidence = new ConfidenceAggregator();
+    const tierQuery: TierQuery = {
+      prompt,
+      context,
+      maxTokens: 1024,
+      valenceScore: valence,
+    };
+
+    // Accumulate logprobs for signal computation at window boundaries
+    const windowLogprobs: Array<{ token: string; logprob: number; topLogprobs?: Array<{ token: string; logprob: number }> }> = [];
+    const windowTokens: string[] = [];
+    let escalated = false;
+    let escalationTargetTier: 1 | 2 | 3 = 2; // default escalation target if mid-stream
+    let finalTierResponse: TierResponse | null = null;
+
+    log.debug('queryStream: starting Tier 1 token stream');
+
+    for await (const chunk of tier1!.generateStream!(tierQuery)) {
+      if (chunk.isFinal) {
+        finalTierResponse = chunk.finalResponse ?? null;
+        break;
+      }
+
+      const tok = chunk.token;
+      if (!tok) continue;
+
+      // Accumulate for signal window
+      windowTokens.push(tok);
+      if (chunk.logprob !== undefined) {
+        windowLogprobs.push({ token: tok, logprob: chunk.logprob, topLogprobs: chunk.topLogprobs });
+      }
+
+      // Push to speculative buffer
+      const accepted = buffer.push(tok);
+
+      if (!accepted || buffer.isFull()) {
+        // ── Evaluate escalation at this window boundary ───────────────────
+        const signals = windowLogprobs.length > 0
+          ? (await import('../tiers/signals.js')).computeSignalsFromLogprobs(windowLogprobs, windowTokens)
+          : (await import('../tiers/signals.js')).computeSignalsFromHeuristics(windowTokens);
+
+        const decision = confidence.decide(1, signals, valence);
+        const metaDecision = this.meta.evaluate(decision, signals, valence, 1);
+
+        const shouldEscalate =
+          (decision.shouldEscalate && metaDecision.action !== 'suppress') ||
+          metaDecision.action === 'force';
+
+        if (shouldEscalate) {
+          // ── Escalate — abort Tier 1 stream ────────────────────────────
+          escalated = true;
+          // Capture target tier HERE while decision is in scope (not after loop)
+          escalationTargetTier = (decision.targetTier > 1 ? decision.targetTier : 2) as 1 | 2 | 3;
+          log.info(
+            {
+              reason: decision.reason,
+              confidence: decision.confidence.toFixed(3),
+              bufferTokens: buffer.snapshot().fillPosition,
+              targetTier: escalationTargetTier,
+            },
+            'queryStream: mid-stream escalation triggered — switching to higher tier'
+          );
+          buffer.reject();
+          // Fall through to batch escalation below
+          break;
+        } else {
+          // ── No escalation — flush buffer to caller ────────────────────
+          const flushed = buffer.confirm();
+          for (const t of flushed) yield t;
+          // Reset window for next evaluation
+          windowLogprobs.length = 0;
+          windowTokens.length = 0;
+        }
+      }
+    }
+
+    if (!escalated) {
+      // Stream finished without escalation — flush any remaining buffer
+      if (finalTierResponse) {
+        // Re-evaluate full signals from complete response
+        const decision = confidence.decide(1, finalTierResponse.escalationSignals, valence);
+        const metaDecision = this.meta.evaluate(decision, finalTierResponse.escalationSignals, valence, 1);
+
+        if ((decision.shouldEscalate && metaDecision.action !== 'suppress') || metaDecision.action === 'force') {
+          escalated = true;
+          log.info('queryStream: post-stream escalation triggered from full signals');
+          buffer.reject();
+        }
+      }
+
+      if (!escalated) {
+        // Flush remaining buffer and record outcome
+        const flushed = buffer.confirm();
+        for (const t of flushed) yield t;
+
+        const latencyMs = performance.now() - startTime;
+        log.info(
+          {
+            tier: 1,
+            escalated: false,
+            latencyMs: Math.round(latencyMs),
+            streaming: true,
+          },
+          'queryStream: Tier 1 complete (no escalation)'
+        );
+
+        if (finalTierResponse) {
+          this.meta.recordOutcome(
+            finalTierResponse.escalationSignals, valence, 'stay', 'confirm', 1,
+            finalTierResponse.tokens.length,
+            finalTierResponse.confidence
+          );
+        }
+        return;
+      }
+    }
+
+    // ── Batch escalation to higher tier ──────────────────────────────────────
+    // Use the tier decided at escalation time; for post-stream escalation derive from full signals
+    const escalationPath = [1];
+    const targetTier: 1 | 2 | 3 = finalTierResponse
+      ? (confidence.decide(1, finalTierResponse.escalationSignals, valence).targetTier > 1
+          ? confidence.decide(1, finalTierResponse.escalationSignals, valence).targetTier as 1 | 2 | 3
+          : 2)
+      : escalationTargetTier;
+    escalationPath.push(targetTier);
+
+    log.info({ from: 1, to: targetTier }, 'queryStream: escalating to higher tier (batch)');
+
+    const escalatedGen = await this.generateFromTierWithRecovery(targetTier, tierQuery);
+    if (!escalatedGen.response) {
+      log.error('queryStream: escalated tier had no response');
+      return;
+    }
+
+    const latencyMs = performance.now() - startTime;
+    log.info(
+      { tier: targetTier, escalated: true, latencyMs: Math.round(latencyMs), streaming: true },
+      'queryStream: escalated tier complete'
+    );
+
+    // Yield escalated tier tokens
+    const words = escalatedGen.response.tokens.join(' ').split(/(\s+)/);
+    for (const w of words) {
+      if (w) yield w;
+    }
+
+    this.meta.recordOutcome(
+      escalatedGen.response.escalationSignals, valence, 'escalate', 'confirm', targetTier,
+      escalatedGen.response.tokens.length,
+      escalatedGen.response.confidence
+    );
   }
 
   /**
