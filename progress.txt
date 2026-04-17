@@ -349,9 +349,76 @@ Verification tools:
 - src/tools/test-retrain.ts — 6-test retraining loop verification
 
 ==========================================================================
-PHASE 6 START POINT (suggested)
+PHASE 6 — SWARM + CONTINUOUS DATA COLLECTION
 ==========================================================================
 
-- Full benchmark suite expansion (Phase 4+5 metrics: stream latency, retrain cycles)
-- README update with all phase results
-- Swarm prototype planning (multi-agent coordination)
+STATUS: COMPLETE
+
+TRACK B — CONTINUOUS DATA COLLECTION:
+  src/tools/collect-loop.ts:
+  - Rotating batches: 5 hard + 3 mixed + 3 simple + 3 code queries per round
+  - 3-minute pause between rounds (lets Ollama breathe, shadow evals flush)
+  - Graceful SIGINT shutdown mid-round
+  - State logged to logs/collect-loop-state.json
+  - Estimated ~$0.01/hour in Haiku shadow eval costs
+  - Started overnight: running continuously, PID logged in collect-loop.log
+
+TRACK C — SWARM COORDINATOR:
+  src/swarm/domain.ts — DomainDetector
+  - 6 domains: code, math, reasoning, creative, factual, general
+  - Pattern-based scoring < 1ms, no model calls
+  - Per-domain weights + confidence margin scoring
+
+  src/swarm/registry.ts — NodeRegistry
+  - Loads config/swarm.json (or built-in defaults)
+  - selectNode(domain, latencyBudgetMs): gpu preferred, then cpu
+  - getNodeChain(domain): ordered fallback list for a domain
+  - Health checks cached 30s (avoids hammering Ollama on every query)
+
+  src/swarm/coordinator.ts — SwarmCoordinator
+  - query() + queryStream() — domain detect → node chain → Router fallback
+  - callNode(): direct Ollama HTTP call with Promise.race timeout
+  - streamFromNode(): Ollama stream:true on specialist node
+  - Falls back to Router if all specialists fail or are busy
+
+  config/swarm.json — 6 nodes configured for this machine:
+  - fast-general:    qwen2.5:1.5b   GPU   10s budget  (factual/general)
+  - code-fast:       qwen2.5-coder:7b  GPU  30s budget  (code)
+  - code-deep:       deepseek-coder-v2:16b GPU 90s budget (code)
+  - general-medium:  qwen2.5:14b    GPU   60s budget  (general/creative)
+  - general-large:   qwen2.5:32b    CPU  300s budget  (general/reasoning)
+  - reasoning-deep:  deepseek-r1:70b CPU  600s budget  (reasoning/math)
+
+  KEY INSIGHT for small-GPU machines:
+  CPU nodes (32B, 70B) serve latency-tolerant queries from RAM.
+  A 6GB GPU + 64GB RAM setup can run 4B GPU + 70B CPU in parallel.
+  The coordinator decides what can wait vs what needs sub-10s response.
+
+  Test results (test-swarm.ts):
+  - Offline: 11/11 PASS (domain detection, node selection, health, coordinator)
+  - Live: 11/11 PASS (code routed to specialist, factual to fast node,
+    streaming 202 tokens; fallback to Router when nodes busy — correct behavior)
+
+==========================================================================
+PHASE 6 TOOLS ADDED
+==========================================================================
+
+Production code:
+- src/swarm/domain.ts — DomainDetector
+- src/swarm/registry.ts — NodeRegistry
+- src/swarm/coordinator.ts — SwarmCoordinator
+- config/swarm.json — node config for this machine
+
+Verification / ops tools:
+- src/tools/collect-loop.ts — overnight data collection loop
+- src/tools/test-swarm.ts — offline + live swarm verification
+
+==========================================================================
+PHASE 7 START POINT (suggested)
+==========================================================================
+
+- HTTP API server — expose Router/Coordinator via REST so other tools
+  can use Kindling without embedding TypeScript
+- Multi-machine swarm — test coordinator with Ollama on second machine
+- README — document everything built across phases 1-6
+- Benchmark expansion — include swarm routing latency, domain accuracy
