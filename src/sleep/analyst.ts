@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, appendFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
 import Anthropic from '@anthropic-ai/sdk';
 import pino from 'pino';
 import { getConfig, readLearnedStore } from '../config/config.js';
@@ -9,7 +10,7 @@ import { getLogFilePath, getSessionId } from './logger.js';
 import type { EscalationEvent } from './logger.js';
 import { ConceptPrewarmer } from './prewarmer.js';
 import { compactLog } from './compactor.js';
-import { loadRecentExamples } from '../shadow/training-store.js';
+import { loadRecentExamples, getTrainingStats } from '../shadow/training-store.js';
 import type { TrainingExample } from '../shadow/training-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,6 +18,17 @@ const __dirname = dirname(__filename);
 const LOGS_DIR = resolve(__dirname, '../../logs');
 const SLEEP_DIR = resolve(LOGS_DIR, 'sleep');
 const CONFIG_DIR = resolve(__dirname, '../../config');
+const MODELS_DIR = resolve(__dirname, '../../models');
+const TRAINING_META_FILE = resolve(MODELS_DIR, 'training-meta.json');
+
+/** Persisted state about the last classifier training run */
+interface TrainingMeta {
+  lastTrainedAt: string;
+  lastTrainedExampleCount: number;
+  lastTrainingAccuracy?: number;
+}
+
+const RETRAIN_THRESHOLD = 20; // new examples needed since last training to trigger retraining
 
 const log = pino({ level: process.env.KINDLING_LOG_LEVEL ?? 'info' });
 
@@ -98,6 +110,8 @@ export class SleepAnalyst {
   private queriesSinceLastSleep = 0;
   private dreamRunning = false;
   private notificationCallback: ((msg: string) => void) | null = null;
+  /** Called after a successful training pass to hot-reload the model in the router */
+  private retrainCallback: (() => boolean) | null = null;
 
   constructor() {
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -113,6 +127,14 @@ export class SleepAnalyst {
   /** Register a callback for dream task notifications (e.g., REPL display) */
   onNotification(cb: (msg: string) => void): void {
     this.notificationCallback = cb;
+  }
+
+  /**
+   * Register a callback invoked after a successful classifier retrain.
+   * The callback should call router.reloadMLClassifier() to hot-swap the model.
+   */
+  setRetrainCallback(cb: () => boolean): void {
+    this.retrainCallback = cb;
   }
 
   /** Call this on every query to track activity */
@@ -180,11 +202,14 @@ export class SleepAnalyst {
 
       if (this.notificationCallback && result) {
         this.notificationCallback(
-          `💤 Sleep analysis complete — ${adjustmentsApplied} routing adjustment${adjustmentsApplied === 1 ? '' : 's'} applied`
+          `Sleep analysis complete — ${adjustmentsApplied} routing adjustment${adjustmentsApplied === 1 ? '' : 's'} applied`
         );
       }
 
       this.queriesSinceLastSleep = 0;
+
+      // Phase 5A: retrain classifier if enough new shadow examples have accumulated
+      await this.checkAndRetrain();
     } catch (err) {
       this.logDreamEvent({
         timestamp: new Date().toISOString(),
@@ -495,6 +520,117 @@ export class SleepAnalyst {
     }
 
     return { stats, signalCorrelations, tierBreakdown };
+  }
+
+  // ─── Continuous Retraining (Phase 5A) ──────────────────────────────────────
+
+  /**
+   * Check whether enough new shadow examples have accumulated since the last
+   * training pass. If so, spawn the Python training pipeline and hot-reload
+   * the resulting model. Called at the end of each dream task.
+   *
+   * Disabled when KINDLING_RETRAIN=false.
+   */
+  private async checkAndRetrain(): Promise<void> {
+    if (process.env.KINDLING_RETRAIN === 'false') return;
+    if (!this.retrainCallback) return;
+
+    const stats = await getTrainingStats();
+    if (!stats.exists) return;
+
+    const meta = this.readTrainingMeta();
+    const newExamples = stats.totalExamples - meta.lastTrainedExampleCount;
+
+    if (newExamples < RETRAIN_THRESHOLD) {
+      log.info(
+        { newExamples, threshold: RETRAIN_THRESHOLD, total: stats.totalExamples },
+        'Retrain check: not enough new examples yet'
+      );
+      return;
+    }
+
+    log.info(
+      { newExamples, total: stats.totalExamples, threshold: RETRAIN_THRESHOLD },
+      'Retrain threshold reached — spawning training pipeline'
+    );
+
+    try {
+      await this.runTrainingPipeline();
+      const reloaded = this.retrainCallback();
+      if (reloaded) {
+        this.writeTrainingMeta({
+          lastTrainedAt: new Date().toISOString(),
+          lastTrainedExampleCount: stats.totalExamples,
+        });
+        log.info({ examples: stats.totalExamples }, 'Classifier retrained and hot-reloaded');
+        if (this.notificationCallback) {
+          this.notificationCallback(
+            `ML classifier retrained on ${stats.totalExamples} examples and hot-reloaded`
+          );
+        }
+      } else {
+        log.warn('Training succeeded but model reload failed (model file missing?)');
+      }
+    } catch (err) {
+      log.error({ err }, 'Classifier retraining failed');
+    }
+  }
+
+  /** Spawn `python scripts/train-classifier.py` and wait for it to exit. */
+  private runTrainingPipeline(): Promise<void> {
+    const scriptPath = resolve(__dirname, '../../scripts/train-classifier.py');
+    const cwd = resolve(__dirname, '../..');
+
+    return new Promise((done, fail) => {
+      const proc = spawn('python', [scriptPath], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        cwd,
+      });
+
+      const stdout: string[] = [];
+      const stderr: string[] = [];
+
+      proc.stdout?.on('data', (chunk: Buffer) => {
+        stdout.push(chunk.toString());
+      });
+      proc.stderr?.on('data', (chunk: Buffer) => {
+        stderr.push(chunk.toString());
+      });
+
+      proc.on('close', (code) => {
+        if (code === 0) {
+          log.info({ output: stdout.join('').slice(0, 500) }, 'Training pipeline completed');
+          done();
+        } else {
+          const errMsg = stderr.join('').slice(0, 1000) || stdout.join('').slice(0, 1000);
+          fail(new Error(`Training pipeline exited ${code}: ${errMsg}`));
+        }
+      });
+
+      proc.on('error', (err) => {
+        fail(new Error(`Failed to spawn training pipeline: ${err.message}`));
+      });
+    });
+  }
+
+  private readTrainingMeta(): TrainingMeta {
+    try {
+      if (existsSync(TRAINING_META_FILE)) {
+        return JSON.parse(readFileSync(TRAINING_META_FILE, 'utf-8')) as TrainingMeta;
+      }
+    } catch {
+      // fallback to defaults
+    }
+    return { lastTrainedAt: '', lastTrainedExampleCount: 0 };
+  }
+
+  private writeTrainingMeta(meta: TrainingMeta): void {
+    try {
+      if (!existsSync(MODELS_DIR)) mkdirSync(MODELS_DIR, { recursive: true });
+      writeFileSync(TRAINING_META_FILE, JSON.stringify(meta, null, 2), 'utf-8');
+    } catch (err) {
+      log.warn({ err }, 'Failed to write training-meta.json');
+    }
   }
 
   private signalToConfigKey(signal: string): string | null {

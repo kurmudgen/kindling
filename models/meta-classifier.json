@@ -27,7 +27,7 @@
   ],
   "intercept": -4.049928382094133,
   "threshold": 0.5,
-  "trainedAt": "2026-04-16T17:46:43.950058Z",
+  "trainedAt": "2026-04-17T02:58:24.398864Z",
   "trainingExamples": 54,
   "accuracy": 0.889090909090909
 }

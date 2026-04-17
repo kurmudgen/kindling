@@ -25,6 +25,8 @@ async function main(): Promise<void> {
       console.log(`\n${msg}\n`);
       process.stdout.write('> ');
     });
+    // Phase 5A: hot-reload the ML classifier after each successful retrain
+    analyst.setRetrainCallback(() => router.reloadMLClassifier());
     analyst.startIdleMonitor();
     if (process.env.KINDLING_DREAM !== 'false') {
       log.info('Dream task monitor started (auto sleep on idle)');
