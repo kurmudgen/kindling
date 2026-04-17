@@ -1,0 +1,59 @@
+{
+  "defaultLatencyBudgetMs": 60000,
+  "nodes": [
+    {
+      "id": "fast-general",
+      "endpoint": "http://localhost:11434",
+      "model": "qwen2.5:1.5b",
+      "domains": ["factual", "general"],
+      "hardware": "gpu",
+      "maxLatencyMs": 10000,
+      "description": "Ultra-fast small model for simple factual queries"
+    },
+    {
+      "id": "code-fast",
+      "endpoint": "http://localhost:11434",
+      "model": "qwen2.5-coder:7b",
+      "domains": ["code"],
+      "hardware": "gpu",
+      "maxLatencyMs": 30000,
+      "description": "Code specialist — fast, 7B"
+    },
+    {
+      "id": "code-deep",
+      "endpoint": "http://localhost:11434",
+      "model": "deepseek-coder-v2:16b",
+      "domains": ["code"],
+      "hardware": "gpu",
+      "maxLatencyMs": 90000,
+      "description": "Code specialist — deep, 16B"
+    },
+    {
+      "id": "general-medium",
+      "endpoint": "http://localhost:11434",
+      "model": "qwen2.5:14b",
+      "domains": ["general", "factual", "creative"],
+      "hardware": "gpu",
+      "maxLatencyMs": 60000,
+      "description": "General purpose mid-size model"
+    },
+    {
+      "id": "general-large",
+      "endpoint": "http://localhost:11434",
+      "model": "qwen2.5:32b",
+      "domains": ["general", "reasoning", "creative"],
+      "hardware": "cpu",
+      "maxLatencyMs": 300000,
+      "description": "Large general — 32B, partial CPU offload when VRAM full"
+    },
+    {
+      "id": "reasoning-deep",
+      "endpoint": "http://localhost:11434",
+      "model": "deepseek-r1:70b",
+      "domains": ["reasoning", "math"],
+      "hardware": "cpu",
+      "maxLatencyMs": 600000,
+      "description": "Deep reasoning — 70B RAM-offloaded, slow but very powerful"
+    }
+  ]
+}
