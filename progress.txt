@@ -278,11 +278,80 @@ PHASE 4 ACTIVATION FLOW
 6. Dream tasks continue refining with shadow ground truth
 
 ==========================================================================
-PHASE 5 START POINT
+PHASE 5 — STREAMING + CONTINUOUS RETRAINING
 ==========================================================================
 
-- Per-token streaming routing (speculative buffer is built, unused)
-- Full benchmark suite expansion with Phase 4 metrics
+STATUS: PHASE 5A + 5B COMPLETE
+
+PHASE 5B — PER-TOKEN STREAMING ROUTING: PASS
+  src/tiers/tier-interface.ts:
+  - StreamChunk interface: token, logprob, topLogprobs, isFinal, finalResponse
+  - Optional generateStream?() added to Tier interface
+
+  src/tiers/tier1.ts:
+  - generateStream(): Ollama stream:true, per-chunk logprob accumulation
+  - Final chunk has isFinal=true + complete TierResponse for signal computation
+
+  src/router/router.ts:
+  - queryStream(prompt, context): public AsyncGenerator<string>
+  - queryStreamInternal(): full speculative-buffer escalation logic
+    * High-valence → batch via queryInternal, yield words
+    * Tier 1 → stream via generateStream()
+    * At buffer.isFull(): evaluate signals, decide escalation mid-stream
+    * No escalation: buffer.confirm(), yield flushed tokens + continue
+    * Escalation: buffer.reject(), abort Tier 1, batch escalate to Tier 2/3
+
+  Test results (test-streaming.ts — 5 tests, all PASS):
+  - TEST 1: Simple query streams (7 tokens, Tier 1, no escalation)
+  - TEST 2: Stream vs batch latency comparison (informational)
+  - TEST 3: Medium query — ML classifier triggered mid-stream escalation
+    (p=0.617, confidence=0.61) → Tier 2, 445 tokens, first token 424ms
+  - TEST 4: High-valence — ML force (p=0.90, confidence=0.80) → batch Tier 2
+  - TEST 5: AsyncGenerator contract verified without Ollama call
+
+PHASE 5A — CONTINUOUS RETRAINING LOOP: PASS
+  src/sleep/analyst.ts:
+  - checkAndRetrain(): called after each dream task completion
+  - Reads models/training-meta.json for lastTrainedExampleCount
+  - Threshold: 20 new shadow examples since last training
+  - Spawns `python scripts/train-classifier.py` as subprocess
+  - On success: calls retrainCallback() for hot model reload, writes meta file
+  - KINDLING_RETRAIN=false env var disables retraining
+  - setRetrainCallback(cb): wired from index.ts → router.reloadMLClassifier()
+
+  src/index.ts:
+  - analyst.setRetrainCallback(() => router.reloadMLClassifier())
+
+  src/router/router.ts:
+  - reloadMLClassifier(): delegates to meta.reloadMLClassifier()
+
+  Test results (test-retrain.ts — 6 tests, all PASS):
+  - TEST 1: 54 training examples in store
+  - TEST 2: training-meta.json round-trip
+  - TEST 3: threshold logic (20 new examples)
+  - TEST 4: Python training pipeline (88.9% accuracy, 54 examples)
+  - TEST 5: hot-reload works
+  - TEST 6: KINDLING_RETRAIN=false guard
+
+==========================================================================
+PHASE 5 TOOLS ADDED
+==========================================================================
+
+Production code:
+- src/tiers/tier-interface.ts — StreamChunk interface
+- src/tiers/tier1.ts — generateStream() Ollama streaming
+- src/router/router.ts — queryStream(), reloadMLClassifier()
+- src/sleep/analyst.ts — checkAndRetrain(), runTrainingPipeline(), TrainingMeta
+- src/index.ts — setRetrainCallback wiring
+
+Verification tools:
+- src/tools/test-streaming.ts — 5-test streaming verification
+- src/tools/test-retrain.ts — 6-test retraining loop verification
+
+==========================================================================
+PHASE 6 START POINT (suggested)
+==========================================================================
+
+- Full benchmark suite expansion (Phase 4+5 metrics: stream latency, retrain cycles)
 - README update with all phase results
-- Swarm prototype planning
-- Continuous retraining loop (dream triggers retrain when enough new data)
+- Swarm prototype planning (multi-agent coordination)
