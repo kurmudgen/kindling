@@ -18,6 +18,7 @@ dotenv.config({ override: true });
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
 import pino from 'pino';
 import { loadConfig } from '../config/config.js';
 import { Router } from '../router/router.js';
@@ -26,6 +27,9 @@ import { getTrainingStats } from '../shadow/training-store.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const LOOP_STATE_FILE = resolve(__dirname, '../../logs/collect-loop-state.json');
+const TRAINING_META_FILE = resolve(__dirname, '../../models/training-meta.json');
+const TRAIN_SCRIPT = resolve(__dirname, '../../scripts/train-classifier.py');
+const RETRAIN_THRESHOLD = 20;
 
 const log = pino({ level: 'info' });
 
@@ -153,6 +157,59 @@ async function runQuery(
   }
 }
 
+// ─── Auto-retrain ─────────────────────────────────────────────────────────────
+
+interface TrainingMeta { lastTrainedExampleCount: number; lastTrainedAt: string; }
+
+function readTrainingMeta(): TrainingMeta {
+  try {
+    if (existsSync(TRAINING_META_FILE))
+      return JSON.parse(readFileSync(TRAINING_META_FILE, 'utf-8')) as TrainingMeta;
+  } catch { /* ignore */ }
+  return { lastTrainedExampleCount: 0, lastTrainedAt: '' };
+}
+
+function writeTrainingMeta(total: number): void {
+  writeFileSync(TRAINING_META_FILE, JSON.stringify({
+    lastTrainedAt: new Date().toISOString(),
+    lastTrainedExampleCount: total,
+  }, null, 2), 'utf-8');
+}
+
+async function maybeRetrain(router: Router, totalExamples: number): Promise<void> {
+  const meta = readTrainingMeta();
+  const newExamples = totalExamples - meta.lastTrainedExampleCount;
+  if (newExamples < RETRAIN_THRESHOLD) return;
+
+  console.log(`\nRetrain threshold reached (+${newExamples} new examples) — running training pipeline...`);
+  await new Promise<void>((done, fail) => {
+    const proc = spawn('python', [TRAIN_SCRIPT], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: resolve(__dirname, '../..'),
+    });
+    const out: string[] = [];
+    const err: string[] = [];
+    proc.stdout?.on('data', (d: Buffer) => out.push(d.toString()));
+    proc.stderr?.on('data', (d: Buffer) => err.push(d.toString()));
+    proc.on('close', code => {
+      if (code === 0) {
+        // Print key result lines only
+        out.join('').split('\n')
+          .filter(l => l.includes('accuracy') || l.includes('F1') || l.includes('exported'))
+          .forEach(l => console.log(' ', l.trim()));
+        writeTrainingMeta(totalExamples);
+        const reloaded = router.reloadMLClassifier();
+        console.log(`  Hot-reload: ${reloaded ? 'OK' : 'failed'}`);
+        done();
+      } else {
+        console.warn(`  Training failed (exit ${code}): ${err.join('').slice(0, 200)}`);
+        done(); // non-fatal — loop continues
+      }
+    });
+    proc.on('error', err => { fail(err); });
+  });
+}
+
 // ─── Round builder ────────────────────────────────────────────────────────────
 
 /** Build a balanced round: 4 hard, 2 mixed, 3 simple, 3 code — rotated by round number */
@@ -219,6 +276,9 @@ async function main() {
     console.log(`\nRound ${round} done — failures: ${roundFailed}/${queries.length}`);
     console.log(`Training examples: ${stats.totalExamples} total (+${newExamples} since loop start)`);
     saveState(state);
+
+    // Auto-retrain when enough new shadow examples have accumulated
+    await maybeRetrain(router, stats.totalExamples);
 
     if (!running) break;
 
