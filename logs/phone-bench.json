@@ -1,0 +1,87 @@
+{
+  "completedAt": "2026-04-30T10:44:17.894Z",
+  "totalMs": 1262801.902,
+  "results": [
+    {
+      "prompt": "The capital of Japan is",
+      "phone": {
+        "ok": true,
+        "latencyMs": 422135.2563,
+        "tokens": 50,
+        "coherence": 0.6813953488372093,
+        "text": " Tokyo. The capital of Japan is Tokyo. The capital of Japan is Tokyo. The capital of Japan is Tokyo. The capital of Japan is Tokyo. The capital of Japan is Tokyo. The capital of Japan is Tokyo. The capital of Japan is Tokyo",
+        "tokPerSec": 0.11844544906826349
+      },
+      "pcGpu": {
+        "ok": true,
+        "latencyMs": 1784.5533999999752,
+        "tokens": 1,
+        "coherence": 0.71,
+        "text": "Tokyo.",
+        "tokPerSec": 0.5603642905838592
+      },
+      "api": {
+        "ok": true,
+        "latencyMs": 790.4634000000078,
+        "tokens": 19,
+        "coherence": 0.884736842105263,
+        "text": "The capital of Japan is **Tokyo**. It is the country's largest city and has been the capital since 1868.",
+        "tokPerSec": 24.036533506800964
+      }
+    },
+    {
+      "prompt": "Two plus two equals",
+      "phone": {
+        "ok": true,
+        "latencyMs": 420731.9121,
+        "tokens": 50,
+        "coherence": 0.9750000000000001,
+        "text": " four. This is a fact that we all know. But what if we were to ask you to add two and two and then subtract two from the result? Would you still get four? The answer is no. In fact, the answer would be",
+        "tokPerSec": 0.11884052186684606
+      },
+      "pcGpu": {
+        "ok": true,
+        "latencyMs": 1839.658700000029,
+        "tokens": 5,
+        "coherence": 0.75,
+        "text": "Two plus two equals four.",
+        "tokPerSec": 2.7178954444103796
+      },
+      "api": {
+        "ok": true,
+        "latencyMs": 638.6016999999993,
+        "tokens": 10,
+        "coherence": 0.7999999999999999,
+        "text": "Two plus two equals **four** (2 + 2 = 4).",
+        "tokPerSec": 15.659212933507712
+      }
+    },
+    {
+      "prompt": "Water boils at temperature",
+      "phone": {
+        "ok": true,
+        "latencyMs": 410245.1169,
+        "tokens": 50,
+        "coherence": 0.9472222222222222,
+        "text": " 212 °F and ice melts at 32 °F. If the temperature of a cup of coffee is 100 °F, how many degrees warmer is the temperature of the coffee than the temperature at which ice melts?",
+        "tokPerSec": 0.12187835501327328
+      },
+      "pcGpu": {
+        "ok": true,
+        "latencyMs": 3518.344900000142,
+        "tokens": 38,
+        "coherence": 1,
+        "text": "Water boils at 100 degrees Celsius (212 degrees Fahrenheit) under standard atmospheric pressure, which is typically measured as sea level conditions. This boiling point decreases with increasing altitude due to lower atmospheric pressure.\n\nHere's the breakdown:\n\n- **",
+        "tokPerSec": 10.80053294377094
+      },
+      "api": {
+        "ok": true,
+        "latencyMs": 1112.75139999995,
+        "tokens": 25,
+        "coherence": 0.95,
+        "text": "# Boiling Point of Water\n\nWater boils at **100°C (212°F)** at standard atmospheric pressure (1 atm or 101.3 kPa) at sea level.\n\n## Important Note:",
+        "tokPerSec": 22.466833112949686
+      }
+    }
+  ]
+}

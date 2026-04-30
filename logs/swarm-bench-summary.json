@@ -1,0 +1,70 @@
+{
+  "completedAt": "2026-04-29T08:22:10.114Z",
+  "totalQueries": 6,
+  "totalWallMs": 2384140.8520000004,
+  "successRates": {
+    "gpu": 0.3333333333333333,
+    "cpu": 0,
+    "api": 1
+  },
+  "avgLatencyMs": {
+    "gpu": 72230.94615,
+    "cpu": 0,
+    "api": 6036.346433333383
+  },
+  "avgCoherence": {
+    "gpu": 0.8802280758111146,
+    "cpu": 0,
+    "api": 0.8590061358033285
+  },
+  "perDomain": [
+    {
+      "domain": "code",
+      "gpu": {
+        "coherence": 0.8802280758111146,
+        "latencyMs": 72230.94615
+      },
+      "cpu": {
+        "coherence": 0,
+        "latencyMs": 0
+      },
+      "api": {
+        "coherence": 0.8015584342982599,
+        "latencyMs": 5471.7532000000065
+      },
+      "cpuVsApiDelta": 0
+    },
+    {
+      "domain": "reasoning",
+      "gpu": {
+        "coherence": 0,
+        "latencyMs": 0
+      },
+      "cpu": {
+        "coherence": 0,
+        "latencyMs": 0
+      },
+      "api": {
+        "coherence": 0.8827752790271531,
+        "latencyMs": 7899.192950000055
+      },
+      "cpuVsApiDelta": 0
+    },
+    {
+      "domain": "math",
+      "gpu": {
+        "coherence": 0,
+        "latencyMs": 0
+      },
+      "cpu": {
+        "coherence": 0,
+        "latencyMs": 0
+      },
+      "api": {
+        "coherence": 0.8926846940845724,
+        "latencyMs": 4738.093150000088
+      },
+      "cpuVsApiDelta": 0
+    }
+  ]
+}

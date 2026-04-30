@@ -1,5 +1,6 @@
 {
   "defaultLatencyBudgetMs": 60000,
+  "_note": "Hardware-corrected after Phase 7 bench: anything >7B is CPU-resident on this 6GB VRAM machine. 70B disabled — caused RAM thrashing.",
   "nodes": [
     {
       "id": "fast-general",
@@ -8,7 +9,7 @@
       "domains": ["factual", "general"],
       "hardware": "gpu",
       "maxLatencyMs": 10000,
-      "description": "Ultra-fast small model for simple factual queries"
+      "description": "Ultra-fast small model — fits comfortably in 6GB VRAM"
     },
     {
       "id": "code-fast",
@@ -16,44 +17,26 @@
       "model": "qwen2.5-coder:7b",
       "domains": ["code"],
       "hardware": "gpu",
-      "maxLatencyMs": 30000,
-      "description": "Code specialist — fast, 7B"
+      "maxLatencyMs": 60000,
+      "description": "Code specialist 7B — fits in 6GB VRAM at Q4"
     },
     {
-      "id": "code-deep",
+      "id": "reasoning-fast",
       "endpoint": "http://localhost:11434",
-      "model": "deepseek-coder-v2:16b",
-      "domains": ["code"],
-      "hardware": "gpu",
-      "maxLatencyMs": 90000,
-      "description": "Code specialist — deep, 16B"
-    },
-    {
-      "id": "general-medium",
-      "endpoint": "http://localhost:11434",
-      "model": "qwen2.5:14b",
-      "domains": ["general", "factual", "creative"],
+      "model": "qwen2.5:7b",
+      "domains": ["reasoning", "math", "general", "creative"],
       "hardware": "gpu",
       "maxLatencyMs": 60000,
-      "description": "General purpose mid-size model"
+      "description": "General 7B for reasoning/math when CPU lane busy — fits in 6GB VRAM"
     },
     {
       "id": "general-large",
       "endpoint": "http://localhost:11434",
       "model": "qwen2.5:32b",
-      "domains": ["general", "reasoning", "creative"],
+      "domains": ["general", "reasoning", "creative", "factual", "math", "code"],
       "hardware": "cpu",
       "maxLatencyMs": 300000,
-      "description": "Large general — 32B, partial CPU offload when VRAM full"
-    },
-    {
-      "id": "reasoning-deep",
-      "endpoint": "http://localhost:11434",
-      "model": "deepseek-r1:70b",
-      "domains": ["reasoning", "math"],
-      "hardware": "cpu",
-      "maxLatencyMs": 600000,
-      "description": "Deep reasoning — 70B RAM-offloaded, slow but very powerful"
+      "description": "Large model in RAM — only fits when 70B is NOT loaded"
     }
   ]
 }
