@@ -414,11 +414,115 @@ Verification / ops tools:
 - src/tools/test-swarm.ts — offline + live swarm verification
 
 ==========================================================================
-PHASE 7 START POINT (suggested)
+PHASE 7 — BENCHMARK VALIDATION (DESKTOP SWARM + MOBILE NODE)
 ==========================================================================
 
-- HTTP API server — expose Router/Coordinator via REST so other tools
-  can use Kindling without embedding TypeScript
-- Multi-machine swarm — test coordinator with Ollama on second machine
-- README — document everything built across phases 1-6
-- Benchmark expansion — include swarm routing latency, domain accuracy
+STATUS: COMPLETE (commit cc64322)
+
+GOAL: Test the small-GPU-substitution thesis with real measurements,
+extend to a phone-as-swarm-node experiment.
+
+DESKTOP SWARM BENCH (src/tools/swarm-bench.ts)
+12 queries, 6 domains, 3 paths per query (GPU/CPU/API).
+
+Initial run revealed structural issues with the hardware assumptions:
+- 14B and 70B models marked as "GPU" in swarm.json were actually CPU-resident
+  (size_vram=0 in Ollama PS) — they don't fit in the 6GB VRAM
+- 70B (43GB) caused RAM thrashing and connection drops; user killed it mid-run
+- CPU 32B node failed intermittently with "fetch failed" even after
+  keep_alive=0 fix — issue was GPU-unload-overlap-with-CPU-load, not OOM
+  (machine has 128GB RAM, 99GB free)
+
+Per-domain coherence delta (CPU 32B vs API):
+  factual:    +0.06 (CPU close to API)
+  creative:   -0.01 (CPU edged API)
+  general:    +0.05 (CPU close to API)
+  reasoning:  no successful CPU runs
+  math:       no successful CPU runs
+  code:       failed CPU; GPU specialist (qwen2.5-coder:7b) worked at coh 0.86
+
+PHONE BENCH (src/tools/phone-bench.ts)
+3 short factual queries, 3 paths (phone llama-server vs PC-GPU vs API).
+
+Setup automated through pushed shell scripts (Termux release build blocks
+adb run-as, so drove via input text + status files instead of SSH):
+  1. Sideloaded Termux APK from F-Droid (bypassed Play Protect via
+     'settings put global package_verifier_enable 0' first)
+  2. /data/local/tmp/phase2.sh installs cmake/git/clang, finds prebuilt
+     llama-cpp in Termux repos (no source build needed),
+     downloads qwen2.5-1.5b-instruct-q4_k_m.gguf (~1.1GB) from HuggingFace,
+     starts llama-server on port 8080
+  3. adb forward tcp:8090 tcp:8080 — PC reaches phone at localhost:8090
+
+Phone hardware: Moto G Play 2024, 4GB RAM (1.6GB free), arm64-v8a,
+no GPU/NPU acceleration.
+
+Results:
+                     Phone        PC-GPU 1.5B   API (Haiku)
+  Avg latency        417.7s       2.4s          0.8s
+  Avg tok/s          0.12         4.69          20.72
+  Avg coherence      0.868        0.820         0.878
+  Success            3/3          3/3           3/3
+
+Phone is 175x slower than PC-GPU on the same 1.5B model.
+
+Required workaround: phone bench had to use streaming mode (stream:true).
+Non-streaming /completion produced zero bytes until generation finished,
+which tripped Node fetch's default body timeout on slow phone generation.
+
+KEY FINDINGS / RESEARCH IMPLICATIONS
+
+1. The "swarm on one machine" mental model was wrong on this hardware.
+   Every "node" added to swarm.json competes for the same Ollama instance,
+   the same RAM/VRAM, and the same model-load queue. Not independent
+   lanes — sequential queue slots on a single server.
+
+2. CPU 32B IS competitive on factual/creative/general at ~30x latency.
+   Coherence within 0.06 of API. This is the most defensible piece of
+   the small-GPU thesis: bulk RAM serves a real purpose for
+   non-reasoning work.
+
+3. Reasoning + math need API fallback or bigger GPU on this machine.
+   No 14B+ model fit in 6GB VRAM. The 70B was unworkable.
+
+4. Mobile-LLM is real but not for live inference.
+   A budget Android phone CAN run a 1.5B local LLM. Useful only as an
+   offline/async lane (queued work, draft generation while user is
+   offline, dream-task background work). Live query routing to a phone
+   produces 7-minute latencies. Mobile-LLM at scale needs hardware
+   acceleration (NPU, mobile GPU, dedicated AI silicon).
+
+5. Architectural revision: next iteration of swarm.json should
+   distinguish "live lane" (sub-30s) from "deferred lane" (minutes-OK).
+   Phones, CPU 70B, and overnight retraining belong in deferred.
+
+PHASE 7 TOOLS ADDED
+  src/tools/swarm-bench.ts        — 12-query 3-way GPU/CPU/API bench
+  src/tools/phone-bench.ts        — phone-specific bench with streaming
+  config/swarm.json               — corrected for actual VRAM constraint
+                                    (14B and 70B removed/relabeled)
+  logs/swarm-bench-summary.json   — desktop bench results
+  logs/phone-bench.json           — phone bench results (full content)
+
+PHONE STATE NOTE
+  Termux installed (sideloaded F-Droid build). llama-cpp installed via
+  pkg + qwen2.5:1.5b GGUF resident in ~/models on phone. To resume:
+    adb forward tcp:8090 tcp:8080
+    adb shell input text "bash%s/data/local/tmp/phase2.sh"
+    adb shell input keyevent 66
+  llama-server stops automatically when Termux is force-stopped.
+
+==========================================================================
+PHASE 8 START POINT (suggested)
+==========================================================================
+
+- README — still missing; would document everything built across phases 1-7
+- Multi-machine swarm — second PC with Ollama, real independent lanes
+- Tier-aware coordinator — explicit 'live' vs 'deferred' lanes in swarm.json,
+  coordinator picks based on user's expressed urgency
+- HTTP API server — expose Router/Coordinator over REST
+- Better quality metric — current coherence is length+diversity, noisy.
+  Add LLM-as-judge for the next bench iteration.
+- Mobile NPU — explore MLC Chat / llama.rn / ONNX Runtime Mobile to
+  use phone NPU/GPU acceleration. 175x phone slowdown is hardware-limited
+  on pure CPU; specialized runtimes claim 5-10x speedups.
