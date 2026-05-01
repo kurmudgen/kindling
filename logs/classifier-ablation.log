@@ -1,0 +1,17 @@
+Dataset: 90 examples, 26 positive (28.9%)
+
+Feature set                                                       CV F1     CV Accuracy
+------------------------------------------------------------------------------------------
+ALL (10 features — current ship)                        0.873 ± 0.012    0.931 ± 0.007
+VALENCE-ONLY (4 features — pre-gen complexity scoring)  0.871 ± 0.010    0.924 ± 0.004
+STREAMING-ONLY (4 features — runtime token signals)     0.710 ± 0.012    0.799 ± 0.008
+
+ALL vs VALENCE-only:    delta F1 = +0.002
+ALL vs STREAMING-only:  delta F1 = +0.163
+VALENCE vs STREAMING:   delta F1 = +0.161
+
+=> Streaming signals are NOT pulling meaningful weight.
+  Pre-generation valence scoring achieves nearly the same F1 with 60%
+  fewer features. The streaming-signal architecture has implementation
+  cost (per-token probability tracking, semantic velocity calc, etc.)
+  but doesn't translate to better escalation decisions on this data.
