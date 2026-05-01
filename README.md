@@ -1,54 +1,59 @@
 # Kindling
 
-**Adaptive tiered inference runtime. Low burn, always present. Flares when needed.**
+A research project trying to figure out: **can a small/weak GPU be made comparable to a bigger one by leaning on CPU and RAM?** I know I can't actually replace VRAM, but I wanted to see how close I could get and where it falls apart.
 
-![build](https://img.shields.io/badge/build-passing-brightgreen)
-![license](https://img.shields.io/badge/license-MIT-blue)
-![version](https://img.shields.io/badge/version-0.1.0-orange)
+This is not a product. It's a build log with code attached. Some of it works. Some of it doesn't. The interesting parts are the things I learned while it failed.
 
-## What It Is
+## What's actually here
 
-Most local LLM setups assume you have a GPU with enough VRAM to hold an entire model, or you eat the latency of running everything on CPU. Kindling rejects that tradeoff. It runs a small, fast model on CPU as the always-hot default, then escalates to heavier compute only when confidence signals say the small model can't handle the query. No VRAM required. No GPU required. Just CPU, RAM, and a willingness to let the cheap tier do most of the work.
-
-Kindling monitors four real-time escalation signals during generation — token probability spread, semantic velocity, surprise score, and attention anomaly patterns. When signals cross configurable thresholds, the query escalates to the next tier. When signals stabilize, it drops back down. During idle periods, a "sleep stage" analyst reviews the session's escalation logs and adjusts routing weights so the system gets smarter about when to escalate over time.
-
-## How It Works
+A 3-tier LLM router that tries to do most work cheaply and only escalate when it has to:
 
 ```
-Query → Valence Scorer → Tier 1 (always hot)
-                              ↓ confidence low
-                         Tier 2 (warm standby)
-                              ↓ confidence low
-                         Tier 3 (API / streamed)
+prompt → valence scorer → Tier 1 (small Ollama, always hot)
+                              ↓ low confidence
+                         Tier 2 (medium Ollama + API fallback)
+                              ↓ low confidence
+                         Tier 3 (Anthropic API)
                               ↑
-                    Sleep Analyst (idle)
-                    learns from escalation logs
-                    adjusts weights for next session
+                       sleep analyst reviews logs during idle,
+                       retrains an ML classifier that decides
+                       when to escalate next time
 ```
 
-**Tier 1 (Shallow)** — Small Ollama model (default: qwen2.5:1.5b). Always loaded, always fast. Handles the majority of queries. Writes tokens into a speculative buffer while Tier 2 verifies in parallel.
+The novel-ish bit is **the meta-confidence loop**: every Nth query, the same prompt also gets sent to the Anthropic API as a teacher signal. We compare local-vs-API output and label whether escalation was actually needed. That builds a training dataset, which we use to retrain a logistic-regression classifier that the router consults on the next query. It's been retraining itself in the background and is currently at ~92% accuracy on 89 examples.
 
-**Tier 2 (Medium)** — Larger Ollama model (default: gemma2:27b) with API fallback to Claude Haiku. Activates when Tier 1 confidence drops. Takes over from the buffer position, not from scratch.
+There's also a **swarm coordinator** that routes queries to specialist nodes by detected domain (code/math/reasoning/creative/factual/general), with hardware-aware fallback chains. This is where things got interesting in Phase 7 — see "Findings."
 
-**Tier 3 (Deep)** — Local large model via Ollama NVMe streaming (default: qwen2.5:32b), with Anthropic API fallback. Reserved for high-complexity, high-stakes queries. Gracefully degrades: GPU VRAM → RAM mmap → disk streaming.
+## What I built (phase by phase)
 
-**Confidence Router** — Aggregates weighted escalation signals per token, makes escalate/de-escalate decisions against configurable thresholds.
+| Phase | What | Status |
+|-------|------|--------|
+| 1-3 | Core 3-tier router, valence scoring, escalation signals | done |
+| 3.5 | 55-query benchmark | done |
+| 4 | Shadow eval (API as teacher) + ML meta-confidence classifier | done, 92% accuracy |
+| 5A | Continuous retraining loop (collect → retrain → hot reload) | done |
+| 5B | Per-token streaming routing | done |
+| 6 | Swarm coordinator + node registry + domain detector + collect-loop | done |
+| 7 | Bench validation (desktop swarm + mobile node) | done |
 
-**Speculative Buffer** — Tier 1 generates ahead into a fixed-size buffer. On confirmation, tokens flush to output. On rejection, Tier 2 resumes from the buffer boundary — no wasted work.
+## Findings (the actually interesting part)
 
-**Sleep Analyst** — Runs during idle. Bundles escalation logs, sends them to the API for pattern analysis, and persists routing weight adjustments to `config/learned.json`.
+### CPU 32B is competitive on the easy stuff
+On factual / creative / general queries, the CPU-resident 32B model produced output within 0.06 coherence of the API at ~30× the latency (122s vs 4s). That's not a free lunch but it's a real one — bulk RAM does serve a purpose for non-reasoning work.
 
-## Hardware Profiles
+### Reasoning + math broke local
+Nothing 14B+ fit in my 6GB VRAM. The 14B got CPU-served and timed out. The 70B caused RAM thrashing bad enough I had to kill it mid-bench. So those domains have to fall through to the API on this hardware.
 
-Set via `KINDLING_PROFILE` env var:
+### "Swarm on one machine" doesn't really exist
+Every "node" in `swarm.json` competes for the same Ollama instance, the same RAM, the same model-load queue. They're not independent lanes — they're sequential queue slots. The architecture only starts to make sense with separate hardware. This was the most useful negative finding from Phase 7.
 
-| Profile | Target Hardware | Tier 1 | Tier 2 | Buffer | Escalation |
-|---------|----------------|--------|--------|--------|------------|
-| `default` | General | qwen2.5:1.5b | gemma2:27b | 4 tokens | Moderate |
-| `ddr4-budget` | DDR4, limited RAM | qwen2.5:0.5b | qwen2.5:7b | 2 tokens | Aggressive (escalates earlier) |
-| `prosumer` | DDR5, no GPU | qwen2.5:3b | gemma2:27b | 6 tokens | Conservative (tries harder locally) |
+### Phones can run LLMs but not for live queries
+I sideloaded Termux on a 4GB Moto G Play, got `qwen2.5:1.5b` running via llama-cpp, exposed the HTTP server back to the PC. It works. **It runs at 0.12 tok/s — about 7 minutes per simple query.** That's 175× slower than the same model on the PC GPU. So phones are real as an offline/deferred lane (queued background work, dream-task runners), not as live inference nodes. The mobile-LLM future probably needs NPU acceleration to be practical.
 
-## Quick Start
+### Coherence as a quality metric is noisy
+Current "coherence" is just sentence punctuation + word diversity + length. Good enough to spot total failures, not good enough to draw fine-grained quality conclusions from. Future benches should use LLM-as-judge.
+
+## Quick start
 
 ```bash
 git clone https://github.com/kurmudgen/kindling
@@ -56,33 +61,44 @@ cd kindling
 npm install
 ollama pull qwen2.5:1.5b
 cp .env.example .env
-# Add ANTHROPIC_API_KEY to .env for Tier 2 fallback and Tier 3
+# Add ANTHROPIC_API_KEY to .env for Tier 3 + shadow eval
 npm run start
 ```
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
+| Command | What it does |
+|---------|--------------|
 | `npm run start` | Interactive REPL |
 | `npm run bench` | 55-query benchmark suite |
-| `npm test` | Run unit tests |
-| `/sleep` | Trigger sleep stage analysis manually |
+| `npm test` | Unit tests |
+| `npx tsx src/tools/swarm-bench.ts` | 12-query GPU/CPU/API comparison |
+| `npx tsx src/tools/phone-bench.ts` | Phone vs PC-GPU vs API (needs phone setup) |
+| `npx tsx src/tools/collect-loop.ts` | Background data collection + auto-retrain |
+| `/sleep` | Trigger sleep-stage analysis in REPL |
 | `/clear` | Clear conversation context |
 
-## Bring Your Own Key
+## Hardware profiles
 
-Kindling uses BYOK for all API calls — you supply your own Anthropic API key, and Kindling never touches billing. Set `ANTHROPIC_API_KEY` in `.env`. Tier 2 falls back to Claude Haiku when the local model isn't available. Tier 3 uses Claude Sonnet for deep queries. Tier 1 is always local via Ollama and never hits an API. Without an API key, the system still works — Tier 1 and local Tier 2 handle everything, and Tier 3 is simply unavailable.
+| Profile | Target | Tier 1 | Tier 2 |
+|---------|--------|--------|--------|
+| `default` | General | qwen2.5:1.5b | gemma2:27b (or Haiku) |
+| `ddr4-budget` | Limited RAM | qwen2.5:0.5b | qwen2.5:7b |
+| `prosumer` | DDR5, no GPU | qwen2.5:3b | gemma2:27b |
 
-## Phase Roadmap
+Set via `KINDLING_PROFILE`.
 
-| Phase | Status | Description |
-|-------|--------|-------------|
-| Phase 1 | **Complete** | Core runtime, API stand-in for Tier 3, sleep stage learning |
-| Phase 2 | **Complete** | Logprob-based escalation, local Tier 3 NVMe streaming, cold concept warming |
-| Phase 3 | Planned | Sleep state soft weight updates, streaming per-token routing |
-| Phase 4 | Planned | Meta-confidence model, full benchmark suite |
-| Phase 5 | Planned | Open swarm prototype |
+## BYOK
+
+You bring your own Anthropic key. Kindling never touches billing. Without a key, Tier 1 and local Tier 2 still work — you just lose the API fallback and shadow-eval-driven classifier improvement.
+
+## What's still open
+
+- README in your hands now, but multi-machine swarm is the obvious next experiment — actually verifying the "independent lanes" idea with separate hardware
+- Replace coherence metric with LLM-as-judge so future benches mean more
+- Split `swarm.json` into explicit "live" (sub-30s) and "deferred" (minutes-OK) lanes; coordinator picks based on caller's urgency
+- HTTP API server so things outside this repo can use Kindling without embedding TS
+- Mobile NPU — try MLC Chat / llama.rn / ONNX Runtime Mobile to see if the 175× phone slowdown can be cut
 
 ## License
 
