@@ -1,0 +1,83 @@
+◇ injecting env (4) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+=== Speed Bench — Phase 7+ ===
+Workload: 3 prompts × n_predict=80
+
+
+--- R1 [32B] CPU baseline (default) (model: qwen2.5:32b) ---
+    options: {"num_gpu":0}
+    [1/3] OK load=22.4s eval=80tok/45.6s = 1.75 tok/s
+    [2/3] OK load=11.9s eval=80tok/49.2s = 1.63 tok/s
+    [3/3] OK load=12.0s eval=80tok/49.9s = 1.60 tok/s
+    mean: 1.66 tok/s, mean load: 15.4s
+
+--- R2 [32B] CPU + num_thread=16 (physical) (model: qwen2.5:32b) ---
+    options: {"num_gpu":0,"num_thread":16}
+    [1/3] OK load=10.5s eval=80tok/48.6s = 1.64 tok/s
+    [2/3] OK load=10.1s eval=80tok/49.8s = 1.61 tok/s
+    [3/3] OK load=10.0s eval=80tok/50.0s = 1.60 tok/s
+    mean: 1.62 tok/s, mean load: 10.2s
+
+--- R3 [32B] CPU + num_thread=32 (logical) (model: qwen2.5:32b) ---
+    options: {"num_gpu":0,"num_thread":32}
+    [1/3] FAIL fetch failed
+    [2/3] FAIL fetch failed
+    [3/3] FAIL fetch failed
+    mean: 0.00 tok/s, mean load: 0.0s
+
+--- R4a [32B] partial GPU num_gpu=10 (model: qwen2.5:32b) ---
+    options: {"num_gpu":10,"num_thread":16}
+    [1/3] OK load=9.3s eval=80tok/44.0s = 1.82 tok/s
+    [2/3] OK load=9.0s eval=80tok/43.3s = 1.85 tok/s
+    [3/3] OK load=9.0s eval=80tok/43.4s = 1.85 tok/s
+    mean: 1.84 tok/s, mean load: 9.1s
+
+--- R4b [32B] partial GPU num_gpu=20 (model: qwen2.5:32b) ---
+    options: {"num_gpu":20,"num_thread":16}
+    [1/3] OK load=9.2s eval=80tok/43.5s = 1.84 tok/s
+    [2/3] OK load=9.3s eval=80tok/43.5s = 1.84 tok/s
+    [3/3] OK load=9.0s eval=80tok/43.6s = 1.84 tok/s
+    mean: 1.84 tok/s, mean load: 9.2s
+
+--- R4c [32B] partial GPU num_gpu=30 (model: qwen2.5:32b) ---
+    options: {"num_gpu":30,"num_thread":16}
+    [1/3] OK load=9.0s eval=80tok/42.2s = 1.89 tok/s
+    [2/3] OK load=9.2s eval=80tok/43.2s = 1.85 tok/s
+    [3/3] OK load=9.0s eval=80tok/43.1s = 1.86 tok/s
+    mean: 1.87 tok/s, mean load: 9.1s
+
+--- R5 [14B] CPU baseline (num_gpu=0) (model: qwen2.5:14b) ---
+    options: {"num_gpu":0,"num_thread":16}
+    [1/3] OK load=7.5s eval=80tok/19.4s = 4.12 tok/s
+    [2/3] OK load=4.1s eval=80tok/19.3s = 4.15 tok/s
+    [3/3] OK load=4.1s eval=80tok/19.3s = 4.14 tok/s
+    mean: 4.13 tok/s, mean load: 5.2s
+
+--- R6 [14B] full GPU offload (num_gpu=999) (model: qwen2.5:14b) ---
+    options: {"num_gpu":999,"num_thread":16}
+    [1/3] OK load=4.1s eval=80tok/19.3s = 4.14 tok/s
+    [2/3] OK load=4.0s eval=80tok/19.4s = 4.11 tok/s
+    [3/3] OK load=4.4s eval=80tok/19.8s = 4.04 tok/s
+    mean: 4.10 tok/s, mean load: 4.2s
+
+
+=== SUMMARY (eval tok/s, higher is better) ===
+  R5 [14B] CPU baseline (num_gpu=0)               4.13 tok/s   load=5.2s
+  R6 [14B] full GPU offload (num_gpu=999)         4.10 tok/s   load=4.2s
+  R4c [32B] partial GPU num_gpu=30                1.87 tok/s   load=9.1s
+  R4b [32B] partial GPU num_gpu=20                1.84 tok/s   load=9.2s
+  R4a [32B] partial GPU num_gpu=10                1.84 tok/s   load=9.1s
+  R1 [32B] CPU baseline (default)                 1.66 tok/s   load=15.4s
+  R2 [32B] CPU + num_thread=16 (physical)         1.62 tok/s   load=10.2s
+  R3 [32B] CPU + num_thread=32 (logical)          0.00 tok/s   load=0.0s
+
+32B speedups vs CPU baseline:
+  R2 [32B] CPU + num_thread=16 (physical)       0.97x
+  R3 [32B] CPU + num_thread=32 (logical)        0.00x
+  R4a [32B] partial GPU num_gpu=10              1.11x
+  R4b [32B] partial GPU num_gpu=20              1.11x
+  R4c [32B] partial GPU num_gpu=30              1.12x
+
+14B speedups vs CPU baseline:
+  R6 [14B] full GPU offload (num_gpu=999)       0.99x
+
+Results: S:\Research AI related\kindling\logs\speed-bench.json

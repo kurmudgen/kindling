@@ -1,0 +1,300 @@
+{
+  "completedAt": "2026-05-01T08:42:22.339Z",
+  "workload": [
+    "Explain quantum entanglement in one paragraph for a smart non-physicist.",
+    "Compare microservices versus monolithic architecture for a 50-engineer SaaS company.",
+    "Write a TypeScript function that performs binary search and explain its time complexity."
+  ],
+  "configs": [
+    {
+      "label": "R1 [32B] CPU baseline (default)",
+      "model": "qwen2.5:32b",
+      "options": {
+        "num_gpu": 0
+      },
+      "meanTokPerSec": 1.6615676611911538,
+      "meanLoadMs": 15401.3535,
+      "runs": [
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 45638.0647,
+          "evalTokPerSec": 1.7529227088369503,
+          "loadMs": 22377.8382,
+          "promptEvalMs": 4285.4578
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 49162.6604,
+          "evalTokPerSec": 1.627251238014776,
+          "loadMs": 11856.7672,
+          "promptEvalMs": 4735.0499
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 49858.8671,
+          "evalTokPerSec": 1.604529036721735,
+          "loadMs": 11969.4551,
+          "promptEvalMs": 4373.4607
+        }
+      ]
+    },
+    {
+      "label": "R2 [32B] CPU + num_thread=16 (physical)",
+      "model": "qwen2.5:32b",
+      "options": {
+        "num_gpu": 0,
+        "num_thread": 16
+      },
+      "meanTokPerSec": 1.6164947998191053,
+      "meanLoadMs": 10183.4746,
+      "runs": [
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 48644.1584,
+          "evalTokPerSec": 1.6445962399464598,
+          "loadMs": 10486.3017,
+          "promptEvalMs": 4784.563
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 49828.3392,
+          "evalTokPerSec": 1.6055120697259764,
+          "loadMs": 10060.1976,
+          "promptEvalMs": 4773.0449
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 50019.5048,
+          "evalTokPerSec": 1.5993760897848792,
+          "loadMs": 10003.9245,
+          "promptEvalMs": 4372.7224
+        }
+      ]
+    },
+    {
+      "label": "R3 [32B] CPU + num_thread=32 (logical)",
+      "model": "qwen2.5:32b",
+      "options": {
+        "num_gpu": 0,
+        "num_thread": 32
+      },
+      "meanTokPerSec": 0,
+      "meanLoadMs": 0,
+      "runs": [
+        {
+          "ok": false,
+          "evalCount": 0,
+          "evalMs": 0,
+          "evalTokPerSec": 0,
+          "loadMs": 0,
+          "promptEvalMs": 0,
+          "error": "fetch failed"
+        },
+        {
+          "ok": false,
+          "evalCount": 0,
+          "evalMs": 0,
+          "evalTokPerSec": 0,
+          "loadMs": 0,
+          "promptEvalMs": 0,
+          "error": "fetch failed"
+        },
+        {
+          "ok": false,
+          "evalCount": 0,
+          "evalMs": 0,
+          "evalTokPerSec": 0,
+          "loadMs": 0,
+          "promptEvalMs": 0,
+          "error": "fetch failed"
+        }
+      ]
+    },
+    {
+      "label": "R4a [32B] partial GPU num_gpu=10",
+      "model": "qwen2.5:32b",
+      "options": {
+        "num_gpu": 10,
+        "num_thread": 16
+      },
+      "meanTokPerSec": 1.8364646857579086,
+      "meanLoadMs": 9093.449133333334,
+      "runs": [
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 44029.4987,
+          "evalTokPerSec": 1.8169636803064488,
+          "loadMs": 9254.7469,
+          "promptEvalMs": 4424.8987
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 43308.3925,
+          "evalTokPerSec": 1.8472170261225929,
+          "loadMs": 9002.3267,
+          "promptEvalMs": 4398.5375
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 43355.4201,
+          "evalTokPerSec": 1.8452133508446846,
+          "loadMs": 9023.2738,
+          "promptEvalMs": 4072.0686
+        }
+      ]
+    },
+    {
+      "label": "R4b [32B] partial GPU num_gpu=20",
+      "model": "qwen2.5:32b",
+      "options": {
+        "num_gpu": 20,
+        "num_thread": 16
+      },
+      "meanTokPerSec": 1.8380571502070835,
+      "meanLoadMs": 9183.490566666667,
+      "runs": [
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 43539.8614,
+          "evalTokPerSec": 1.8373967538628866,
+          "loadMs": 9238.5662,
+          "promptEvalMs": 4394.1838
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 43479.3678,
+          "evalTokPerSec": 1.839953155896623,
+          "loadMs": 9307.8629,
+          "promptEvalMs": 4456.018
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 43553.4962,
+          "evalTokPerSec": 1.8368215408617414,
+          "loadMs": 9004.0426,
+          "promptEvalMs": 4068.8981
+        }
+      ]
+    },
+    {
+      "label": "R4c [32B] partial GPU num_gpu=30",
+      "model": "qwen2.5:32b",
+      "options": {
+        "num_gpu": 30,
+        "num_thread": 16
+      },
+      "meanTokPerSec": 1.8672327428929723,
+      "meanLoadMs": 9060.4969,
+      "runs": [
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 42243.2256,
+          "evalTokPerSec": 1.8937947768837045,
+          "loadMs": 9005.716,
+          "promptEvalMs": 4406.5895
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 43238.5363,
+          "evalTokPerSec": 1.8502013908366275,
+          "loadMs": 9157.1103,
+          "promptEvalMs": 4376.7788
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 43063.9561,
+          "evalTokPerSec": 1.8577020609585844,
+          "loadMs": 9018.6644,
+          "promptEvalMs": 4015.6148
+        }
+      ]
+    },
+    {
+      "label": "R5 [14B] CPU baseline (num_gpu=0)",
+      "model": "qwen2.5:14b",
+      "options": {
+        "num_gpu": 0,
+        "num_thread": 16
+      },
+      "meanTokPerSec": 4.133958205577743,
+      "meanLoadMs": 5218.093633333333,
+      "runs": [
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 19416.2809,
+          "evalTokPerSec": 4.120253534238887,
+          "loadMs": 7486.6128,
+          "promptEvalMs": 1892.6068
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 19293.5317,
+          "evalTokPerSec": 4.146467388342384,
+          "loadMs": 4056.799,
+          "promptEvalMs": 1898.9593
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 19346.3184,
+          "evalTokPerSec": 4.135153694151958,
+          "loadMs": 4110.8691,
+          "promptEvalMs": 1718.2811
+        }
+      ]
+    },
+    {
+      "label": "R6 [14B] full GPU offload (num_gpu=999)",
+      "model": "qwen2.5:14b",
+      "options": {
+        "num_gpu": 999,
+        "num_thread": 16
+      },
+      "meanTokPerSec": 4.097242000823829,
+      "meanLoadMs": 4186.7174,
+      "runs": [
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 19326.8306,
+          "evalTokPerSec": 4.13932328873416,
+          "loadMs": 4139.9342,
+          "promptEvalMs": 1889.7645
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 19449.0133,
+          "evalTokPerSec": 4.113319208846446,
+          "loadMs": 4016.0584,
+          "promptEvalMs": 1877.1204
+        },
+        {
+          "ok": true,
+          "evalCount": 80,
+          "evalMs": 19806.4734,
+          "evalTokPerSec": 4.039083504890881,
+          "loadMs": 4404.1596,
+          "promptEvalMs": 1749.0031
+        }
+      ]
+    }
+  ]
+}
