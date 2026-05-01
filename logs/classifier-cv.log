@@ -1,0 +1,79 @@
+======================================================================
+Meta-Confidence Classifier — Deep Cross-Validation
+======================================================================
+
+Dataset: 90 examples
+  Escalation-needed (positive): 26 (28.9%)
+  No escalation (negative):     64 (71.1%)
+  Class balance: imbalanced — F1 matters more than accuracy
+
+======================================================================
+STRATIFIED CROSS-VALIDATION
+======================================================================
+
+--- k=5 ---
+  Accuracy:  0.933 +/- 0.054   per-fold: ['0.83', '0.94', '0.94', '1.00', '0.94']
+  F1:        0.887 +/- 0.089   per-fold: ['0.73', '0.91', '0.89', '1.00', '0.91']
+  Precision: 0.900 +/- 0.133
+  Recall:    0.887 +/- 0.093
+
+--- k=10 ---
+  Accuracy:  0.933 +/- 0.074   per-fold: ['0.89', '0.78', '0.89', '1.00', '0.89', '1.00', '1.00', '1.00', '1.00', '0.89']
+  F1:        0.860 +/- 0.147   per-fold: ['0.67', '0.67', '0.67', '1.00', '0.80', '1.00', '1.00', '1.00', '1.00', '0.80']
+  Precision: 0.950 +/- 0.150
+  Recall:    0.833 +/- 0.211
+
+======================================================================
+CROSS-VAL CONFUSION MATRIX (k=5)
+======================================================================
+
+                pred no   pred yes
+  actual no        61         3
+  actual yes        3        23
+
+               precision    recall  f1-score   support
+
+no_escalation      0.953     0.953     0.953        64
+   escalation      0.885     0.885     0.885        26
+
+     accuracy                          0.933        90
+    macro avg      0.919     0.919     0.919        90
+ weighted avg      0.933     0.933     0.933        90
+
+======================================================================
+STABILITY ACROSS RANDOM SEEDS (k=5, 10 seeds)
+======================================================================
+
+  Accuracy across seeds: mean=0.931  std=0.007  range=[0.922, 0.944]
+  F1 across seeds:       mean=0.873  std=0.012  range=[0.855, 0.891]
+
+======================================================================
+TRAIN-VS-TEST GAP (overfit check)
+======================================================================
+
+  Train accuracy avg: 0.944
+  Test accuracy avg:  0.933
+  Gap:                0.011
+  Gap looks healthy
+
+======================================================================
+PERMUTATION FEATURE IMPORTANCE (which features actually matter)
+======================================================================
+
+  Feature                       mean drop in F1      std
+  valenceComplexity                      0.1992   0.0357
+  spreadXcomplexity                      0.1625   0.0217
+  valenceComposite                       0.1564   0.0289
+  valenceUrgency                         0.0198   0.0111  <-- noise
+  valenceStakes                          0.0053   0.0178  <-- noise
+  semanticVelocity                       0.0020   0.0059  <-- noise
+  attentionAnomalyScore                  0.0000   0.0000
+  tokenProbabilitySpread                -0.0019   0.0144
+  surpriseScore                         -0.0064   0.0129
+  surpriseXstakes                       -0.0153   0.0064
+
+  (Higher = more important. Features with |mean| < 2*std are statistically indistinguishable from noise.)
+
+======================================================================
+Summary: classifier is production-ready
+======================================================================
