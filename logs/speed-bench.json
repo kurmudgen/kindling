@@ -1,5 +1,5 @@
 {
-  "completedAt": "2026-05-01T08:42:22.339Z",
+  "completedAt": "2026-05-02T04:36:16.007Z",
   "workload": [
     "Explain quantum entanglement in one paragraph for a smart non-physicist.",
     "Compare microservices versus monolithic architecture for a 50-engineer SaaS company.",
@@ -12,32 +12,32 @@
       "options": {
         "num_gpu": 0
       },
-      "meanTokPerSec": 1.6615676611911538,
-      "meanLoadMs": 15401.3535,
+      "meanTokPerSec": 1.8855264410832733,
+      "meanLoadMs": 10297.471533333333,
       "runs": [
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 45638.0647,
-          "evalTokPerSec": 1.7529227088369503,
-          "loadMs": 22377.8382,
-          "promptEvalMs": 4285.4578
+          "evalMs": 42835.0464,
+          "evalTokPerSec": 1.867629586599444,
+          "loadMs": 13922.8129,
+          "promptEvalMs": 4424.3079
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 49162.6604,
-          "evalTokPerSec": 1.627251238014776,
-          "loadMs": 11856.7672,
-          "promptEvalMs": 4735.0499
+          "evalMs": 42281.1234,
+          "evalTokPerSec": 1.892097313573272,
+          "loadMs": 8588.1315,
+          "promptEvalMs": 4406.1807
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 49858.8671,
-          "evalTokPerSec": 1.604529036721735,
-          "loadMs": 11969.4551,
-          "promptEvalMs": 4373.4607
+          "evalMs": 42175.1313,
+          "evalTokPerSec": 1.8968524230771038,
+          "loadMs": 8381.4702,
+          "promptEvalMs": 3953.8899
         }
       ]
     },
@@ -48,32 +48,32 @@
         "num_gpu": 0,
         "num_thread": 16
       },
-      "meanTokPerSec": 1.6164947998191053,
-      "meanLoadMs": 10183.4746,
+      "meanTokPerSec": 1.910995015358689,
+      "meanLoadMs": 8356.501833333334,
       "runs": [
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 48644.1584,
-          "evalTokPerSec": 1.6445962399464598,
-          "loadMs": 10486.3017,
-          "promptEvalMs": 4784.563
+          "evalMs": 41905.2185,
+          "evalTokPerSec": 1.9090701078196264,
+          "loadMs": 8270.5844,
+          "promptEvalMs": 4313.0046
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 49828.3392,
-          "evalTokPerSec": 1.6055120697259764,
-          "loadMs": 10060.1976,
-          "promptEvalMs": 4773.0449
+          "evalMs": 41757.9815,
+          "evalTokPerSec": 1.9158014139165227,
+          "loadMs": 8432.4422,
+          "promptEvalMs": 4317.1584
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 50019.5048,
-          "evalTokPerSec": 1.5993760897848792,
-          "loadMs": 10003.9245,
-          "promptEvalMs": 4372.7224
+          "evalMs": 41926.2266,
+          "evalTokPerSec": 1.9081135243399177,
+          "loadMs": 8366.4789,
+          "promptEvalMs": 3962.3866
         }
       ]
     },
@@ -123,32 +123,32 @@
         "num_gpu": 10,
         "num_thread": 16
       },
-      "meanTokPerSec": 1.8364646857579086,
-      "meanLoadMs": 9093.449133333334,
+      "meanTokPerSec": 2.2235167649989975,
+      "meanLoadMs": 9870.935366666667,
       "runs": [
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 44029.4987,
-          "evalTokPerSec": 1.8169636803064488,
-          "loadMs": 9254.7469,
-          "promptEvalMs": 4424.8987
+          "evalMs": 36500.081,
+          "evalTokPerSec": 2.191775957976641,
+          "loadMs": 9457.0277,
+          "promptEvalMs": 704.2834
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 43308.3925,
-          "evalTokPerSec": 1.8472170261225929,
-          "loadMs": 9002.3267,
-          "promptEvalMs": 4398.5375
+          "evalMs": 35766.5215,
+          "evalTokPerSec": 2.2367285563400396,
+          "loadMs": 9993.6899,
+          "promptEvalMs": 700.789
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 43355.4201,
-          "evalTokPerSec": 1.8452133508446846,
-          "loadMs": 9023.2738,
-          "promptEvalMs": 4072.0686
+          "evalMs": 35681.6978,
+          "evalTokPerSec": 2.2420457806803125,
+          "loadMs": 10162.0885,
+          "promptEvalMs": 700.0607
         }
       ]
     },
@@ -159,32 +159,32 @@
         "num_gpu": 20,
         "num_thread": 16
       },
-      "meanTokPerSec": 1.8380571502070835,
-      "meanLoadMs": 9183.490566666667,
+      "meanTokPerSec": 2.684327078698491,
+      "meanLoadMs": 9791.700433333333,
       "runs": [
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 43539.8614,
-          "evalTokPerSec": 1.8373967538628866,
-          "loadMs": 9238.5662,
-          "promptEvalMs": 4394.1838
+          "evalMs": 29779.5121,
+          "evalTokPerSec": 2.6864107018059573,
+          "loadMs": 9754.0755,
+          "promptEvalMs": 571.569
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 43479.3678,
-          "evalTokPerSec": 1.839953155896623,
-          "loadMs": 9307.8629,
-          "promptEvalMs": 4456.018
+          "evalMs": 29786.7616,
+          "evalTokPerSec": 2.685756883353174,
+          "loadMs": 9800.4409,
+          "promptEvalMs": 597.2186
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 43553.4962,
-          "evalTokPerSec": 1.8368215408617414,
-          "loadMs": 9004.0426,
-          "promptEvalMs": 4068.8981
+          "evalMs": 29841.6863,
+          "evalTokPerSec": 2.6808136509363414,
+          "loadMs": 9820.5849,
+          "promptEvalMs": 573.9602
         }
       ]
     },
@@ -195,32 +195,32 @@
         "num_gpu": 30,
         "num_thread": 16
       },
-      "meanTokPerSec": 1.8672327428929723,
-      "meanLoadMs": 9060.4969,
+      "meanTokPerSec": 3.277654359189052,
+      "meanLoadMs": 9261.229866666668,
       "runs": [
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 42243.2256,
-          "evalTokPerSec": 1.8937947768837045,
-          "loadMs": 9005.716,
-          "promptEvalMs": 4406.5895
+          "evalMs": 24209.9746,
+          "evalTokPerSec": 3.3044231281432244,
+          "loadMs": 9071.0352,
+          "promptEvalMs": 464.4179
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 43238.5363,
-          "evalTokPerSec": 1.8502013908366275,
-          "loadMs": 9157.1103,
-          "promptEvalMs": 4376.7788
+          "evalMs": 24450.7989,
+          "evalTokPerSec": 3.271876732011403,
+          "loadMs": 9402.1977,
+          "promptEvalMs": 475.2455
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 43063.9561,
-          "evalTokPerSec": 1.8577020609585844,
-          "loadMs": 9018.6644,
-          "promptEvalMs": 4015.6148
+          "evalMs": 24565.0209,
+          "evalTokPerSec": 3.256663217412528,
+          "loadMs": 9310.4567,
+          "promptEvalMs": 470.1438
         }
       ]
     },
@@ -231,32 +231,32 @@
         "num_gpu": 0,
         "num_thread": 16
       },
-      "meanTokPerSec": 4.133958205577743,
-      "meanLoadMs": 5218.093633333333,
+      "meanTokPerSec": 4.269954652694934,
+      "meanLoadMs": 5688.869033333333,
       "runs": [
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 19416.2809,
-          "evalTokPerSec": 4.120253534238887,
-          "loadMs": 7486.6128,
-          "promptEvalMs": 1892.6068
+          "evalMs": 18966.4654,
+          "evalTokPerSec": 4.217970945709262,
+          "loadMs": 8321.1101,
+          "promptEvalMs": 1847.6262
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 19293.5317,
-          "evalTokPerSec": 4.146467388342384,
-          "loadMs": 4056.799,
-          "promptEvalMs": 1898.9593
+          "evalMs": 18673.8326,
+          "evalTokPerSec": 4.284069677265929,
+          "loadMs": 4292.1237,
+          "promptEvalMs": 1950.0425
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 19346.3184,
-          "evalTokPerSec": 4.135153694151958,
-          "loadMs": 4110.8691,
-          "promptEvalMs": 1718.2811
+          "evalMs": 18570.8637,
+          "evalTokPerSec": 4.30782333510961,
+          "loadMs": 4453.3733,
+          "promptEvalMs": 1710.8655
         }
       ]
     },
@@ -267,32 +267,32 @@
         "num_gpu": 999,
         "num_thread": 16
       },
-      "meanTokPerSec": 4.097242000823829,
-      "meanLoadMs": 4186.7174,
+      "meanTokPerSec": 80.31678939551816,
+      "meanLoadMs": 4696.7862,
       "runs": [
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 19326.8306,
-          "evalTokPerSec": 4.13932328873416,
-          "loadMs": 4139.9342,
-          "promptEvalMs": 1889.7645
+          "evalMs": 994.0954,
+          "evalTokPerSec": 80.47517371069216,
+          "loadMs": 4533.733,
+          "promptEvalMs": 31.5067
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 19449.0133,
-          "evalTokPerSec": 4.113319208846446,
-          "loadMs": 4016.0584,
-          "promptEvalMs": 1877.1204
+          "evalMs": 997.1832,
+          "evalTokPerSec": 80.22598054199068,
+          "loadMs": 4789.9176,
+          "promptEvalMs": 31.271
         },
         {
           "ok": true,
           "evalCount": 80,
-          "evalMs": 19806.4734,
-          "evalTokPerSec": 4.039083504890881,
-          "loadMs": 4404.1596,
-          "promptEvalMs": 1749.0031
+          "evalMs": 996.8945,
+          "evalTokPerSec": 80.24921393387163,
+          "loadMs": 4766.708,
+          "promptEvalMs": 34.608
         }
       ]
     }
